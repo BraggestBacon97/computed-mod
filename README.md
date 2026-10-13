@@ -12,12 +12,6 @@ Start with the [Lua authoring guide](docs/lua/authoring-guide.md), the
 [Lua method reference](docs/lua/lua-api-reference.md), and the
 [Java endpoint API](docs/lua/endpoint-api.md).
 
-Build and verify with:
-
-```text
-./gradlew clean check build
-```
-
 # Credits – Third-Party Code
 
 Computed now ships its own node engine, persistence model, runtime, and editor under the
