@@ -1,0 +1,8 @@
+{
+  "variants": {
+    "facing=north": {"model": "computed:block/creative_computer_blinking"},
+    "facing=east":  {"model": "computed:block/creative_computer_blinking", "y":  90},
+    "facing=south": {"model": "computed:block/creative_computer_blinking", "y": 180},
+    "facing=west":  {"model": "computed:block/creative_computer_blinking", "y": 270}
+  }
+}

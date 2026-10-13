@@ -1,0 +1,10 @@
+{
+  "computed:waila": {
+    "entrypoints": {
+      "common": "dev.propulsionteam.computed.integration.wthit.ComputedWthitPlugin",
+      "client": "dev.propulsionteam.computed.integration.wthit.ComputedWthitPlugin"
+    },
+    "side": "*",
+    "required": []
+  }
+}

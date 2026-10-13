@@ -1,0 +1,14 @@
+{
+  "parent": "computed:block/computer",
+  "textures": {
+    "north":    "computed:block/computer/computer_command_front",
+    "south":    "computed:block/computer/computer_command_back",
+    "side":     "computed:block/computer/computer_command_side",
+    "top":      "computed:block/commandplaster",
+    "bottom":   "computed:block/computer/computer_command_bottom",
+    "screen":   "computed:block/computer/computer_screen_on",
+    "cursor":   "computed:block/computer/computer_on",
+    "keyboard": "computed:block/keyboard",
+    "particle": "computed:block/computer/computer_command_back"
+  }
+}

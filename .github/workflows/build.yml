@@ -1,0 +1,131 @@
+name: Build
+
+on: [push, pull_request]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Setup JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      # This is needed to be able to run ./gradlew below
+      # You can run `git update-index --chmod +x gradlew` then remove this step.
+      - name: Make Gradle wrapper executable
+        run: chmod +x ./gradlew
+
+      - name: Build with Gradle
+        run: ./gradlew build
+
+      - name: Prepare nightly jar artifact
+        if: github.event_name == 'push'
+        id: artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          artifact="$(ls build/libs/*.jar | grep -Ev '(-sources|-javadoc)' | head -n 1 || true)"
+          if [[ -z "${artifact}" ]]; then
+            echo "No jar artifact found in build/libs"
+            exit 1
+          fi
+          MOD_VERSION=$(grep 'mod_version' gradle.properties | cut -d'=' -f2 | xargs)
+          short_sha="${GITHUB_SHA:0:8}"
+          nightly_name="computed-nightly-${MOD_VERSION}-${short_sha}.jar"
+          nightly_path="build/libs/${nightly_name}"
+          cp "${artifact}" "${nightly_path}"
+          echo "path=${nightly_path}" >> "${GITHUB_OUTPUT}"
+          echo "name=${nightly_name}" >> "${GITHUB_OUTPUT}"
+          echo "short_sha=${short_sha}" >> "${GITHUB_OUTPUT}"
+
+      - name: Send jar to Discord webhook
+        if: github.event_name == 'push'
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          ARTIFACT_PATH: ${{ steps.artifact.outputs.path }}
+          ARTIFACT_NAME: ${{ steps.artifact.outputs.name }}
+          SHORT_SHA: ${{ steps.artifact.outputs.short_sha }}
+          BEFORE_SHA: ${{ github.event.before || '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${DISCORD_WEBHOOK_URL:-}" ]]; then
+            echo "Missing required secret: DISCORD_WEBHOOK_URL"
+            exit 1
+          fi
+
+          payload=$(python3 -c "
+          import json, os, subprocess
+
+          repo        = os.environ['GITHUB_REPOSITORY']
+          repo_url    = f'https://github.com/{repo}'
+          branch      = os.environ['GITHUB_REF_NAME']
+          artifact    = os.environ['ARTIFACT_NAME']
+          current_sha = os.environ['GITHUB_SHA']
+          short_sha   = os.environ['SHORT_SHA']
+          before_sha  = os.environ.get('BEFORE_SHA', '').strip()
+          timestamp   = subprocess.check_output(['date', '-u', '+%Y-%m-%dT%H:%M:%SZ']).decode().strip()
+
+          null_sha = '0000000000000000000000000000000000000000'
+          if before_sha and before_sha != null_sha:
+            before_short  = before_sha[:8]
+            hash_range    = f'{before_short}...{short_sha}'
+            compare_url   = f'https://github.com/{repo}/compare/{before_sha}...{current_sha}'
+            git_range     = f'{before_sha}..HEAD'
+            extra_args    = [git_range]
+          else:
+            hash_range    = short_sha
+            compare_url   = f'https://github.com/{repo}/commit/{current_sha}'
+            extra_args    = ['-5']
+
+          log = subprocess.check_output(
+            ['git', 'log', '--pretty=format:%h|%H|%s|%an'] + extra_args
+          ).decode().strip()
+
+          commit_lines = ''
+          for line in log.splitlines():
+            if not line:
+              continue
+            parts = line.split('|', 3)
+            if len(parts) < 4:
+              continue
+            h, full_h, msg, author = parts
+            url = f'https://github.com/{repo}/commit/{full_h}'
+            commit_lines += f'\n- [\`{h}\`]({url}) {msg} - by {author}'
+
+          description = (
+            f'🔗 **GitHub Repository:** {repo_url}\n\n'
+            f'[{hash_range}]({compare_url})'
+            f'{commit_lines}\n\n'
+            f'**Build attached below**'
+          )
+
+          payload = {
+            'embeds': [{
+              'title':       f'Building mod from branch {branch}',
+              'color':       2303786,
+              'description': description,
+              'footer':      {'text': 'Computed - Nightly Build'},
+              'timestamp':   timestamp
+            }]
+          }
+          print(json.dumps(payload))
+          ")
+
+          curl -sS -X POST "${DISCORD_WEBHOOK_URL}" \
+            -F "payload_json=${payload}" \
+            -F "file1=@${ARTIFACT_PATH};filename=${ARTIFACT_NAME}"

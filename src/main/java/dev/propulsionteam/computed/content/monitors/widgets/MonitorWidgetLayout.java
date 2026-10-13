@@ -1,0 +1,104 @@
+package dev.propulsionteam.computed.content.monitors.widgets;
+
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * Resolves line-authored widgets into the same raw pixel widgets used by rendering and hit testing.
+ */
+public final class MonitorWidgetLayout {
+    private static final int LINE_HEIGHT_PX = 32;
+    private static final int MONITOR_PADDING_PX = 8;
+
+    private MonitorWidgetLayout() {}
+
+    public static List<Widget> resolve(List<Widget> source, int screenW, int screenH) {
+        List<Widget> out = new ArrayList<>(source.size());
+        int lineCount = Math.max(1, screenH / LINE_HEIGHT_PX);
+        boolean[] occupiedLines = new boolean[lineCount];
+        for (Widget widget : source) {
+            if (!(widget instanceof LayoutManagedWidget managed)) {
+                out.add(widget);
+                continue;
+            }
+            if (!managed.isLineLayout()) {
+                out.add(managed.raw());
+                continue;
+            }
+            int lineIndex = Math.min(lineCount, managed.line()) - 1;
+            int lineSpan = Math.max(1, Math.min(lineCount - lineIndex, (int) Math.round(managed.scale())));
+            boolean occupied = false;
+            for (int i = lineIndex; i < lineIndex + lineSpan; i++) {
+                if (occupiedLines[i]) {
+                    occupied = true;
+                    break;
+                }
+            }
+            if (occupied) {
+                continue;
+            }
+            for (int i = lineIndex; i < lineIndex + lineSpan; i++) {
+                occupiedLines[i] = true;
+            }
+            out.add(resolveLineWidget(managed, screenW, screenH, lineCount, lineIndex, lineSpan));
+        }
+        return out;
+    }
+
+    private static Widget resolveLineWidget(LayoutManagedWidget managed, int screenW, int screenH,
+                                            int lineCount, int lineIndex, int lineSpan) {
+        int availableH = Math.max(1, screenH - MONITOR_PADDING_PX * (lineCount + 1));
+        int lineH = Math.max(1, availableH / lineCount);
+        int lineY = MONITOR_PADDING_PX + lineIndex * (lineH + MONITOR_PADDING_PX);
+        int spannedBottom = MONITOR_PADDING_PX + (lineIndex + lineSpan) * lineH
+                + (lineIndex + lineSpan - 1) * MONITOR_PADDING_PX;
+        int maxLineBottom = Math.max(lineY + 1, screenH - MONITOR_PADDING_PX);
+        int effectiveLineH = Math.max(1, Math.min(spannedBottom, maxLineBottom) - lineY);
+        Bounds bounds = boundsFor(managed, screenW, lineY, effectiveLineH);
+        return withBounds(managed.raw(), bounds.x(), bounds.y(), bounds.w(), bounds.h());
+    }
+
+    private static Bounds boundsFor(LayoutManagedWidget managed, int screenW, int lineY, int lineH) {
+        int slotW = Math.max(1, screenW - MONITOR_PADDING_PX * 2);
+        int targetW = slotW;
+        int targetH = Math.max(1, lineH);
+        int x = MONITOR_PADDING_PX + Math.max(0, (slotW - targetW) / 2);
+        int y = lineY + Math.max(0, (lineH - targetH) / 2);
+        return new Bounds(x, y, targetW, targetH);
+    }
+
+    private static Widget withBounds(Widget raw, int x, int y, int w, int h) {
+        if (raw instanceof TextWidget tw) {
+            return new TextWidget(tw.id(), x, y, w, h, tw.text(), tw.colorArgb(), tw.alignment());
+        }
+        if (raw instanceof ClockWidget cw) {
+            return new ClockWidget(cw.id(), x, y, w, h, cw.colorArgb(), cw.showSeconds(), cw.alignment());
+        }
+        if (raw instanceof ButtonWidget bw) {
+            return new ButtonWidget(bw.id(), x, y, w, h, bw.label(), bw.colorArgb());
+        }
+        if (raw instanceof SliderWidget sw) {
+            return new SliderWidget(sw.id(), x, y, w, h, sw.value(), sw.min(), sw.max(), sw.colorArgb(), sw.step());
+        }
+        if (raw instanceof ProgressBarWidget pb) {
+            return new ProgressBarWidget(pb.id(), x, y, w, h, pb.value(), pb.max(), pb.colorArgb(), pb.segments());
+        }
+        if (raw instanceof TerminalWidget tw) {
+            return new TerminalWidget(tw.id(), x, y, w, h, tw.rows(), tw.defaultFg(), tw.defaultBg(),
+                    tw.textScale(), tw.cursorX(), tw.cursorY());
+        }
+        if (raw instanceof PanelWidget panel) {
+            return new PanelWidget(panel.id(), x, y, w, h, panel.colorArgb(), panel.borderArgb());
+        }
+        if (raw instanceof TextBlockWidget tb) {
+            return new TextBlockWidget(tb.id(), x, y, w, h, tb.text(), tb.fgArgb(), tb.bgArgb(), tb.alignment());
+        }
+        if (raw instanceof TableWidget table) {
+            return new TableWidget(table.id(), x, y, w, h, table.columns(), table.rows(),
+                    table.headerFg(), table.headerBg(), table.cellFg(), table.cellBg());
+        }
+        return raw;
+    }
+
+    private record Bounds(int x, int y, int w, int h) {}
+}

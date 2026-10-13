@@ -1,0 +1,13 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    {
+      "item": "computed:computer"
+    }
+  ],
+  "result": {
+    "count": 1,
+    "id": "computed:computer"
+  }
+}
