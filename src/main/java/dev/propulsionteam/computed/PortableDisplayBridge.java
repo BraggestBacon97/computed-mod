@@ -1,7 +1,6 @@
 package dev.propulsionteam.computed;
 
-import java.util.function.BiConsumer;
-import java.util.function.Consumer;
+import java.util.List;
 import net.minecraft.core.BlockPos;
 
 /**
@@ -9,22 +8,34 @@ import net.minecraft.core.BlockPos;
  * delivery and opening the windowed screen. No-ops on dedicated servers.
  */
 public final class PortableDisplayBridge {
-    private static BiConsumer<BlockPos, byte[]> frameConsumer = (pos, bytes) -> {};
-    private static Consumer<BlockPos> screenOpener = pos -> {};
+    private static FrameConsumer frameConsumer = (pos, bytes, name) -> {};
+    private static OpenConsumer screenOpener = (sources, active) -> {};
+
+    /** One display frame pushed by the server: position, encoded widgets, computer name. */
+    @FunctionalInterface
+    public interface FrameConsumer {
+        void accept(BlockPos pos, byte[] bytes, String computerName);
+    }
+
+    /** Opening request: ordered channel positions plus the initially selected channel. */
+    @FunctionalInterface
+    public interface OpenConsumer {
+        void open(List<BlockPos> sources, int activeIndex);
+    }
 
     private PortableDisplayBridge() {}
 
-    public static void install(BiConsumer<BlockPos, byte[]> frames, Consumer<BlockPos> opener) {
-        frameConsumer = frames == null ? (pos, bytes) -> {} : frames;
-        screenOpener = opener == null ? pos -> {} : opener;
+    public static void install(FrameConsumer frames, OpenConsumer opener) {
+        frameConsumer = frames == null ? (pos, bytes, name) -> {} : frames;
+        screenOpener = opener == null ? (sources, active) -> {} : opener;
     }
 
-    public static void deliver(BlockPos computerPos, byte[] drawListBytes) {
-        frameConsumer.accept(computerPos, drawListBytes);
+    public static void deliver(BlockPos computerPos, byte[] drawListBytes, String computerName) {
+        frameConsumer.accept(computerPos, drawListBytes, computerName);
     }
 
-    /** Opens the windowed monitor screen for the given computer (client only). */
-    public static void openScreen(BlockPos computerPos) {
-        screenOpener.accept(computerPos);
+    /** Opens the windowed monitor screen for the given channels (client only). */
+    public static void openScreen(List<BlockPos> sources, int activeIndex) {
+        screenOpener.open(sources, activeIndex);
     }
 }

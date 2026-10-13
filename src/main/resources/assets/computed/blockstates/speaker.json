@@ -1,0 +1,8 @@
+{
+  "variants": {
+    "facing=north": {"model": "computed:block/speaker"},
+    "facing=east":  {"model": "computed:block/speaker", "y": 90},
+    "facing=south": {"model": "computed:block/speaker", "y": 180},
+    "facing=west":  {"model": "computed:block/speaker", "y": 270}
+  }
+}

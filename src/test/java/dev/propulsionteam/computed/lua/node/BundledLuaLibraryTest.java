@@ -56,6 +56,9 @@ class BundledLuaLibraryTest {
                             .isEmpty()) {
                 return; // registered only by AeronauticsIntegration in-game
             }
+            if (id.startsWith("computed:speaker_")) {
+                return; // requires a real ComputerBlockEntity host with an adjacent speaker block
+            }
             var instance = runtime.createNode(UUID.randomUUID(), source.apiVersion(), source.source());
             var inputs = new LinkedHashMap<String, org.luaj.vm2.LuaValue>();
             instance.definition().inputs().forEach(port -> inputs.put(port.id(), port.defaultValue()));

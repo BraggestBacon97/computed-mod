@@ -13,8 +13,17 @@ public final class MonitorWidgetLayout {
     private MonitorWidgetLayout() {}
 
     public static List<Widget> resolve(List<Widget> source, int screenW, int screenH) {
+        return resolve(source, screenW, screenH, LINE_HEIGHT_PX);
+    }
+
+    /**
+     * Resolves line-managed widgets into raw pixel widgets. {@code lineHeightPx} controls how many
+     * lines fit vertically (smaller lines = more rows on compact screens). Widgets whose preferred
+     * line is occupied flow into the next free line instead of being dropped.
+     */
+    public static List<Widget> resolve(List<Widget> source, int screenW, int screenH, int lineHeightPx) {
         List<Widget> out = new ArrayList<>(source.size());
-        int lineCount = Math.max(1, screenH / LINE_HEIGHT_PX);
+        int lineCount = Math.max(1, screenH / Math.max(1, lineHeightPx));
         boolean[] occupiedLines = new boolean[lineCount];
         for (Widget widget : source) {
             if (!(widget instanceof LayoutManagedWidget managed)) {
@@ -25,16 +34,10 @@ public final class MonitorWidgetLayout {
                 out.add(managed.raw());
                 continue;
             }
-            int lineIndex = Math.min(lineCount, managed.line()) - 1;
-            int lineSpan = Math.max(1, Math.min(lineCount - lineIndex, (int) Math.round(managed.scale())));
-            boolean occupied = false;
-            for (int i = lineIndex; i < lineIndex + lineSpan; i++) {
-                if (occupiedLines[i]) {
-                    occupied = true;
-                    break;
-                }
-            }
-            if (occupied) {
+            int preferred = Math.min(lineCount, Math.max(1, managed.line())) - 1;
+            int lineSpan = Math.max(1, Math.min(lineCount, (int) Math.round(managed.scale())));
+            int lineIndex = findFreeLine(occupiedLines, preferred, lineSpan);
+            if (lineIndex < 0) {
                 continue;
             }
             for (int i = lineIndex; i < lineIndex + lineSpan; i++) {
@@ -43,6 +46,30 @@ public final class MonitorWidgetLayout {
             out.add(resolveLineWidget(managed, screenW, screenH, lineCount, lineIndex, lineSpan));
         }
         return out;
+    }
+
+    /** First free run of {@code span} lines at or after {@code preferred}, wrapping once. */
+    private static int findFreeLine(boolean[] occupied, int preferred, int span) {
+        for (int start = preferred; start + span <= occupied.length; start++) {
+            if (isFree(occupied, start, span)) {
+                return start;
+            }
+        }
+        for (int start = 0; start < preferred && start + span <= occupied.length; start++) {
+            if (isFree(occupied, start, span)) {
+                return start;
+            }
+        }
+        return -1;
+    }
+
+    private static boolean isFree(boolean[] occupied, int start, int span) {
+        for (int i = start; i < start + span; i++) {
+            if (occupied[i]) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private static Widget resolveLineWidget(LayoutManagedWidget managed, int screenW, int screenH,

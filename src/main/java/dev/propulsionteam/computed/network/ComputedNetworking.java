@@ -159,11 +159,19 @@ public final class ComputedNetworking {
                 PullPortableDisplayPayload.TYPE,
                 PullPortableDisplayPayload.STREAM_CODEC,
                 ComputedNetworking::handlePullPortableDisplay);
+        registrar.playToServer(
+                SetPortableSourcePayload.TYPE,
+                SetPortableSourcePayload.STREAM_CODEC,
+                ComputedNetworking::handleSetPortableSource);
+        registrar.playToServer(
+                SetComputerNamePayload.TYPE,
+                SetComputerNamePayload.STREAM_CODEC,
+                ComputedNetworking::handleSetComputerName);
         registrar.playToClient(
                 PortableDisplayPayload.TYPE,
                 PortableDisplayPayload.STREAM_CODEC,
                 (payload, ctx) -> ctx.enqueueWork(() -> PortableDisplayBridge.deliver(
-                        payload.computerPos(), payload.drawListBytes())));
+                        payload.computerPos(), payload.drawListBytes(), payload.computerName())));
     }
 
     public static OpenComputerEditorPayload openPayload(BlockPos pos, long serverRevision, CompoundTag graphTag) {
@@ -247,20 +255,43 @@ public final class ComputedNetworking {
         ctx.enqueueWork(() -> {
             if (!(ctx.player() instanceof ServerPlayer player)) return;
             BlockPos originPos = payload.originPos();
-            if (player.distanceToSqr(Vec3.atCenterOf(originPos)) > ComputerEditPolicy.MAX_DISTANCE_SQ) return;
             BlockEntity be = player.level().getBlockEntity(originPos);
-            if (!(be instanceof MonitorBlockEntity origin)) return;
-            BlockPos ownerPos = origin.getOwnerComputerPos();
-            if (ownerPos == null) return;
-            BlockEntity ownerBe = player.level().getBlockEntity(ownerPos);
-            if (!(ownerBe instanceof ComputerBlockEntity computer)) return;
 
-            int screenW = origin.getWidth() * SCREEN_PX_PER_BLOCK;
-            int screenH = origin.getHeight() * SCREEN_PX_PER_BLOCK;
+            ComputerBlockEntity computer;
+            List<Widget> widgets;
+            int screenW;
+            int screenH;
+            if (be instanceof MonitorBlockEntity origin) {
+                if (player.distanceToSqr(Vec3.atCenterOf(originPos)) > ComputerEditPolicy.MAX_DISTANCE_SQ) {
+                    return;
+                }
+                BlockPos ownerPos = origin.getOwnerComputerPos();
+                if (ownerPos == null) return;
+                BlockEntity ownerBe = player.level().getBlockEntity(ownerPos);
+                if (!(ownerBe instanceof ComputerBlockEntity ownerComputer)) return;
+                computer = ownerComputer;
+                widgets = origin.getDrawList().widgets();
+                screenW = origin.getWidth() * SCREEN_PX_PER_BLOCK;
+                screenH = origin.getHeight() * SCREEN_PX_PER_BLOCK;
+            } else if (be instanceof ComputerBlockEntity direct) {
+                // Portable monitor display: canvas coordinates; authorized by any carried channel,
+                // not by distance — the whole point is operating it from far away.
+                if (!playerCarriesLinkTo(player, originPos)) {
+                    return;
+                }
+                computer = direct;
+                // Must match the resolved layout the client draws, or hit tests miss every widget.
+                widgets = portableWidgets(direct);
+                screenW = PortableMonitorItem.CANVAS_W;
+                screenH = PortableMonitorItem.CANVAS_H;
+            } else {
+                return;
+            }
+
             int px = Math.min(screenW - 1, Math.max(0, (int) Math.floor(payload.u() * screenW)));
             int py = Math.min(screenH - 1, Math.max(0, (int) Math.floor(payload.v() * screenH)));
 
-            for (Widget w : origin.getDrawList().widgets()) {
+            for (Widget w : widgets) {
                 if (px < w.x() || px >= w.x() + w.w() || py < w.y() || py >= w.y() + w.h()) continue;
                 double value = 1.0;
                 if (w instanceof SliderWidget sw) {
@@ -489,22 +520,84 @@ public final class ComputedNetworking {
             }
             ComputerBlockEntity computer = (ComputerBlockEntity) player.level().getBlockEntity(pos);
             int rawCount = computer.lastShownWidgets().size();
-            WidgetDrawList list = new WidgetDrawList(MonitorWidgetLayout.resolve(
-                    computer.lastShownWidgets(), PortableMonitorItem.CANVAS_W, PortableMonitorItem.CANVAS_H));
-            boolean sent = list.hash() != payload.knownHash();
-            if (sent) {
-                FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
-                try {
-                    list.write(buf);
-                    byte[] bytes = new byte[buf.readableBytes()];
-                    buf.readBytes(bytes);
-                    PacketDistributor.sendToPlayer(
-                            player, new PortableDisplayPayload(pos, list.hash(), bytes));
-                } finally {
-                    buf.release();
+            boolean sent = sendPortableDisplayFrame(player, computer, pos, payload.knownHash());
+            logPortablePull(player, pos, authorized, isComputer, rawCount, payload.knownHash(), sent);
+        });
+    }
+
+    /**
+     * Resolves the computer's raw widgets for the portable canvas. Compact rows: 24px lines give
+     * six instead of four. Frame pulls and click hit tests must share this exact resolution.
+     */
+    private static List<Widget> portableWidgets(ComputerBlockEntity computer) {
+        return MonitorWidgetLayout.resolve(
+                computer.lastShownWidgets(),
+                PortableMonitorItem.CANVAS_W, PortableMonitorItem.CANVAS_H, 24);
+    }
+
+    /**
+     * Serializes the computer's portable frame and sends it to the player when the hash differs
+     * from {@code knownHash} (pass {@link Long#MIN_VALUE} to force). Returns whether it sent.
+     */
+    private static boolean sendPortableDisplayFrame(
+            ServerPlayer player, ComputerBlockEntity computer, BlockPos pos, long knownHash) {
+        WidgetDrawList list = new WidgetDrawList(portableWidgets(computer));
+        if (list.hash() == knownHash) {
+            return false;
+        }
+        FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
+        try {
+            list.write(buf);
+            byte[] bytes = new byte[buf.readableBytes()];
+            buf.readBytes(bytes);
+            PacketDistributor.sendToPlayer(
+                    player, new PortableDisplayPayload(pos, list.hash(), computer.computerName(), bytes));
+        } finally {
+            buf.release();
+        }
+        return true;
+    }
+
+    /** Renames the computer and refreshes portable screens of every player carrying a link. */
+    private static void handleSetComputerName(SetComputerNamePayload payload, IPayloadContext ctx) {
+        ctx.enqueueWork(() -> {
+            if (!(ctx.player() instanceof ServerPlayer player)) return;
+            try {
+                ComputerBlockEntity computer = requireComputer(player, payload.computerPos());
+                computer.setComputerName(payload.name());
+                computer.setChanged();
+                player.level().sendBlockUpdated(
+                        payload.computerPos(), computer.getBlockState(), computer.getBlockState(), 3);
+                for (ServerPlayer other : player.getServer().getPlayerList().getPlayers()) {
+                    if (playerCarriesLinkTo(other, payload.computerPos())) {
+                        sendPortableDisplayFrame(other, computer, payload.computerPos(), Long.MIN_VALUE);
+                    }
+                }
+            } catch (IllegalArgumentException exception) {
+                // Same silent rejection pattern as the Computer ID dialog's invalid range.
+                Computed.LOGGER.debug("Set computer name rejected: {}", exception.getMessage());
+            }
+        });
+    }
+
+    /** Stores the channel selected in the portable monitor screen on the carried monitor item. */
+    private static void handleSetPortableSource(SetPortableSourcePayload payload, IPayloadContext ctx) {
+        ctx.enqueueWork(() -> {
+            if (!(ctx.player() instanceof ServerPlayer player)) {
+                return;
+            }
+            for (net.minecraft.world.item.ItemStack stack : player.getInventory().items) {
+                if (stack.getItem() instanceof PortableMonitorItem) {
+                    PortableMonitorItem.setActiveIndex(stack, payload.index());
+                    return;
                 }
             }
-            logPortablePull(player, pos, authorized, isComputer, rawCount, payload.knownHash(), sent);
+            for (net.minecraft.world.item.ItemStack stack : player.getInventory().offhand) {
+                if (stack.getItem() instanceof PortableMonitorItem) {
+                    PortableMonitorItem.setActiveIndex(stack, payload.index());
+                    return;
+                }
+            }
         });
     }
 
@@ -543,8 +636,12 @@ public final class ComputedNetworking {
             return link != null && link.blockPos().equals(pos);
         }
         if (stack.getItem() instanceof PortableMonitorItem) {
-            PortableLinkData link = PortableMonitorItem.readLink(stack);
-            return link != null && link.blockPos().equals(pos);
+            // Any stored channel counts, not just the active one, so switching tabs stays authorized.
+            for (PortableLinkData link : PortableMonitorItem.readLinks(stack)) {
+                if (link.blockPos().equals(pos)) {
+                    return true;
+                }
+            }
         }
         return false;
     }

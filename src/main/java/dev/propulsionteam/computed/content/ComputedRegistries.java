@@ -4,6 +4,8 @@ import dev.propulsionteam.computed.Computed;
 import dev.propulsionteam.computed.content.blocks.ComputerBlock;
 import dev.propulsionteam.computed.content.blocks.ComputerBlockEntity;
 import dev.propulsionteam.computed.content.blocks.ComputerBlockItem;
+import dev.propulsionteam.computed.content.blocks.SpeakerBlock;
+import dev.propulsionteam.computed.content.blocks.SpeakerBlockEntity;
 import dev.propulsionteam.computed.content.items.LinkCardItem;
 import dev.propulsionteam.computed.content.items.PortableMonitorItem;
 import dev.propulsionteam.computed.content.items.ProgramDiskItem;
@@ -99,6 +101,20 @@ public final class ComputedRegistries {
                     "monitor",
                     () -> BlockEntityType.Builder.of(MonitorBlockEntity::new, MONITOR_BLOCK.get()).build(null));
 
+    public static final DeferredBlock<SpeakerBlock> SPEAKER_BLOCK =
+            BLOCKS.register(
+                    "speaker",
+                    props -> new SpeakerBlock(
+                            BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BLOCK).noOcclusion()));
+    public static final DeferredItem<BlockItem> SPEAKER_BLOCK_ITEM =
+            ITEMS.register(
+                    "speaker",
+                    () -> new BlockItem(SPEAKER_BLOCK.get(), new Item.Properties()));
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<SpeakerBlockEntity>> SPEAKER_BLOCK_ENTITY =
+            BLOCK_ENTITY_TYPES.register(
+                    "speaker",
+                    () -> BlockEntityType.Builder.of(SpeakerBlockEntity::new, SPEAKER_BLOCK.get()).build(null));
+
     public static final DeferredItem<ProgramDiskItem> PROGRAM_DISK_ITEM =
             ITEMS.register("program_disk", () -> new ProgramDiskItem(new Item.Properties()));
 
@@ -118,6 +134,7 @@ public final class ComputedRegistries {
                                 output.accept(COMPUTER_BLOCK_ITEM.get());
                                 output.accept(CREATIVE_COMPUTER_BLOCK_ITEM.get());
                                 output.accept(MONITOR_BLOCK_ITEM.get());
+                                output.accept(SPEAKER_BLOCK_ITEM.get());
                                 output.accept(PROGRAM_DISK_ITEM.get());
                                 output.accept(LINK_CARD_ITEM.get());
                                 output.accept(PORTABLE_MONITOR_ITEM.get());

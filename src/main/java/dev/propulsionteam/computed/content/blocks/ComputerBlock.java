@@ -4,6 +4,8 @@ import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import dev.propulsionteam.computed.content.ComputedRegistries;
 import dev.propulsionteam.computed.content.Peripherals;
+import dev.propulsionteam.computed.content.items.LinkCardItem;
+import dev.propulsionteam.computed.content.items.PortableMonitorItem;
 import dev.propulsionteam.computed.content.items.ProgramDiskItem;
 import dev.propulsionteam.computed.network.ComputedNetworking;
 import net.minecraft.nbt.CompoundTag;
@@ -95,6 +97,10 @@ public class ComputerBlock extends Block implements EntityBlock {
 
     @Override
     protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player, BlockHitResult hit) {
+        if (holdsLinkItem(player)) {
+            // Portable monitor / link card want their own Item.useOn flow (link, remove).
+            return InteractionResult.PASS;
+        }
         if (player.isSecondaryUseActive()) {
             return openComputerMenu(level, pos, player);
         }
@@ -110,6 +116,11 @@ public class ComputerBlock extends Block implements EntityBlock {
             Player player,
             InteractionHand hand,
             BlockHitResult hit) {
+        if (stack.getItem() instanceof PortableMonitorItem
+                || stack.getItem() instanceof LinkCardItem) {
+            // Let the item handle linking (right-click) / channel removal (sneak).
+            return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+        }
         if (player.isSecondaryUseActive()) {
             if (Peripherals.isPeripheral(stack)) {
                 if (level.isClientSide) {
@@ -144,6 +155,12 @@ public class ComputerBlock extends Block implements EntityBlock {
         };
     }
 
+    /** True when the main hand holds an item that links to computers instead of opening menus. */
+    private static boolean holdsLinkItem(Player player) {
+        return player.getMainHandItem().getItem() instanceof PortableMonitorItem
+                || player.getMainHandItem().getItem() instanceof LinkCardItem;
+    }
+
     private static InteractionResult openComputerMenu(Level level, BlockPos pos, Player player) {
         if (level.isClientSide) {
             return InteractionResult.SUCCESS;
@@ -171,6 +188,7 @@ public class ComputerBlock extends Block implements EntityBlock {
         CompoundTag bundle = computer.getGraphData();
         Peripherals.writePeripheralUnlockTag(computer, bundle);
         bundle.putInt("FsComputerId", computer.getOrCreateComputerId());
+        bundle.putString("ComputerName", computer.computerName());
         PacketDistributor.sendToPlayer(
                 serverPlayer,
                 ComputedNetworking.openPayload(pos, computer.getProgramRevision(), bundle));

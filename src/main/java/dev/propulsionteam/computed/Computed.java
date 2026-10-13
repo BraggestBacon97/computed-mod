@@ -10,6 +10,7 @@ import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.config.ModConfig;
 import dev.propulsionteam.computed.client.TrollCrashHandler;
 import dev.propulsionteam.computed.content.ComputedRegistries;
+import dev.propulsionteam.computed.content.SpeakerEndpoints;
 import dev.propulsionteam.computed.integration.aeronautics.AeronauticsIntegration;
 import dev.propulsionteam.computed.integration.computercraft.ComputerCraftBootstrap;
 import dev.propulsionteam.computed.integration.create.CreateIntegration;
@@ -26,6 +27,7 @@ public class Computed {
         BuiltinEndpoints.register();
         CreateIntegration.register();
         AeronauticsIntegration.register();
+        SpeakerEndpoints.register();
         ComputedRegistries.register(modEventBus);
         ComputerCraftBootstrap.register(modEventBus);
         ComputedNetworking.register(modEventBus);

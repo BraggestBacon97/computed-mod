@@ -8,6 +8,8 @@ import dev.propulsionteam.computed.content.Peripherals;
 import dev.propulsionteam.computed.content.blocks.ComputerBlockEntity;
 import dev.propulsionteam.computed.menu.ComputerPeripheralMenu;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.ItemBlockRenderTypes;
+import net.minecraft.client.renderer.RenderType;
 import dev.propulsionteam.computed.persistence.ProgramDiskData;
 import dev.propulsionteam.computed.persistence.ProgramV3Codec;
 import net.minecraft.nbt.CompoundTag;
@@ -31,6 +33,7 @@ public class ComputedClient {
         ComputerEditorBridge.install((pos, serverRevision, tag) -> {
             var program = ProgramV3Codec.decode(tag, pos.toShortString(), Computed.LOGGER::warn).program();
             int fsComputerId = tag.contains("FsComputerId") ? tag.getInt("FsComputerId") : -1;
+            String computerName = tag.getString("ComputerName");
             Minecraft.getInstance()
                     .setScreen(
                             new ComputerEditorScreen(
@@ -38,6 +41,7 @@ public class ComputedClient {
                                     program,
                                     serverRevision,
                                     fsComputerId,
+                                    computerName,
                                     readSlotDisk(tag),
                                     tag.getBoolean(ComputerBlockEntity.DISK_PRESENT_TAG)));
         }, (pos, accepted, serverRevision, editorRevision, message) -> {
@@ -68,12 +72,12 @@ public class ComputedClient {
                     }
                 });
         PortableDisplayBridge.install(
-                (pos, bytes) -> {
+                (pos, bytes, name) -> {
                     if (Minecraft.getInstance().screen instanceof PortableMonitorScreen screen) {
-                        screen.onDisplay(pos, bytes);
+                        screen.onDisplay(pos, bytes, name);
                     }
                 },
-                pos -> Minecraft.getInstance().setScreen(new PortableMonitorScreen(pos)));
+                (sources, active) -> Minecraft.getInstance().setScreen(new PortableMonitorScreen(sources, active)));
     }
 
     public ComputedClient(ModContainer container) {
@@ -97,6 +101,8 @@ public class ComputedClient {
     @SubscribeEvent
     static void onClientSetup(FMLClientSetupEvent event) {
         Computed.LOGGER.info("Computed client setup");
+        event.enqueueWork(() -> ItemBlockRenderTypes.setRenderLayer(
+                ComputedRegistries.SPEAKER_BLOCK.get(), RenderType.cutout()));
     }
 
     @SubscribeEvent

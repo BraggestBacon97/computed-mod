@@ -10,9 +10,9 @@ import net.minecraft.resources.ResourceLocation;
 
 /**
  * Server answer to a portable display pull: the wire-encoded {@code WidgetDrawList} of the linked
- * computer, laid out for the portable 128×128 canvas.
+ * computer, laid out for the portable canvas, plus the computer's display name.
  */
-public record PortableDisplayPayload(BlockPos computerPos, long hash, byte[] drawListBytes)
+public record PortableDisplayPayload(BlockPos computerPos, long hash, String computerName, byte[] drawListBytes)
         implements CustomPacketPayload {
     public static final CustomPacketPayload.Type<PortableDisplayPayload> TYPE =
             new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath(Computed.MODID, "portable_display"));
@@ -23,6 +23,8 @@ public record PortableDisplayPayload(BlockPos computerPos, long hash, byte[] dra
                     PortableDisplayPayload::computerPos,
                     ByteBufCodecs.VAR_LONG,
                     PortableDisplayPayload::hash,
+                    ByteBufCodecs.STRING_UTF8,
+                    PortableDisplayPayload::computerName,
                     ByteBufCodecs.BYTE_ARRAY,
                     PortableDisplayPayload::drawListBytes,
                     PortableDisplayPayload::new);

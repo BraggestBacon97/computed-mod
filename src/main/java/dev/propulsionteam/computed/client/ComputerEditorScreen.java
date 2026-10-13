@@ -26,6 +26,7 @@ import dev.propulsionteam.computed.network.PackageListPayload;
 import dev.propulsionteam.computed.network.PackageReadPayload;
 import dev.propulsionteam.computed.network.PackageWritePayload;
 import dev.propulsionteam.computed.network.SetComputerIdPayload;
+import dev.propulsionteam.computed.network.SetComputerNamePayload;
 import dev.propulsionteam.computed.persistence.ProgramV3Codec;
 import dev.propulsionteam.computed.persistence.ComputedProgramPackage;
 import dev.propulsionteam.computed.persistence.ComputedPackageStorage;
@@ -85,6 +86,7 @@ public class ComputerEditorScreen extends WNodeScreen {
     private int explorerHorizontalScroll;
     private Modal modal = Modal.NONE;
     private int fsComputerId = -1;
+    private String computerName = "";
     private List<PackageTransferService.Entry> packageChoices = List.of();
     private boolean packageLoading;
     private ComputedPackageStorage.Kind importKind = ComputedPackageStorage.Kind.GRAPHS;
@@ -96,6 +98,7 @@ public class ComputerEditorScreen extends WNodeScreen {
     private boolean slotDiskPresent;
     private final TextInputHandler exportNameInput = new TextInputHandler(160);
     private final TextInputHandler idInput = new TextInputHandler(16);
+    private final TextInputHandler nameInput = new TextInputHandler(32);
     private PendingExport pendingExport;
     private int pendingWriteOpId = -1;
     private int writeOpSequence;
@@ -112,7 +115,8 @@ public class ComputerEditorScreen extends WNodeScreen {
         OVERWRITE_GRAPH,
         OVERWRITE_NODE,
         DELETE_NODE,
-        SET_COMPUTER_ID
+        SET_COMPUTER_ID,
+        SET_COMPUTER_NAME
     }
 
     /** Captured export content awaiting the server write result (exists check, overwrite, completion). */
@@ -136,6 +140,18 @@ public class ComputerEditorScreen extends WNodeScreen {
             long serverRevision,
             int fsComputerId) {
         this(computerPos, program, serverRevision, fsComputerId, null, false);
+    }
+
+    public ComputerEditorScreen(
+            BlockPos computerPos,
+            ComputedProgramV3 program,
+            long serverRevision,
+            int fsComputerId,
+            String computerName,
+            ProgramDiskData slotDisk,
+            boolean slotDiskPresent) {
+        this(computerPos, program, serverRevision, fsComputerId, slotDisk, slotDiskPresent);
+        this.computerName = computerName == null ? "" : computerName;
     }
 
     public ComputerEditorScreen(
@@ -420,6 +436,8 @@ public class ComputerEditorScreen extends WNodeScreen {
             if (modal == Modal.EXPORT_GRAPH_NAME && keyCode == GLFW.GLFW_KEY_ENTER) { beginGraphExport(false); return true; }
             if (modal == Modal.SET_COMPUTER_ID && idInput.keyPressed(keyCode)) return true;
             if (modal == Modal.SET_COMPUTER_ID && keyCode == GLFW.GLFW_KEY_ENTER) { confirmSetComputerId(); return true; }
+            if (modal == Modal.SET_COMPUTER_NAME && nameInput.keyPressed(keyCode)) return true;
+            if (modal == Modal.SET_COMPUTER_NAME && keyCode == GLFW.GLFW_KEY_ENTER) { confirmSetComputerName(); return true; }
             return true;
         }
         if (isEditorModalOpen()) {
@@ -452,6 +470,7 @@ public class ComputerEditorScreen extends WNodeScreen {
     public boolean charTyped(char codePoint, int modifiers) {
         if (modal == Modal.EXPORT_GRAPH_NAME && exportNameInput.charTyped(codePoint)) return true;
         if (modal == Modal.SET_COMPUTER_ID && idInput.charTyped(codePoint)) return true;
+        if (modal == Modal.SET_COMPUTER_NAME && nameInput.charTyped(codePoint)) return true;
         if (isEditorModalOpen()) {
             return super.charTyped(codePoint, modifiers);
         }
@@ -1091,6 +1110,7 @@ public class ComputerEditorScreen extends WNodeScreen {
         packageLoading = false;
         exportNameInput.blur();
         idInput.blur();
+        nameInput.blur();
     }
 
     /** S2C: folder listing for the open import modal. */
@@ -1189,6 +1209,17 @@ public class ComputerEditorScreen extends WNodeScreen {
         closeModal();
     }
 
+    /** Sends the Set Computer Name dialog to the server (empty name = unnamed). */
+    private void confirmSetComputerName() {
+        String name = nameInput.text().strip();
+        if (name.length() > 32) {
+            name = name.substring(0, 32);
+        }
+        PacketDistributor.sendToServer(new SetComputerNamePayload(computerPos, name));
+        computerName = name;
+        closeModal();
+    }
+
     /** S2C: outcome of the Set Computer ID dialog. */
     public void onComputerIdResult(boolean accepted, int computerId, String message) {
         if (!message.isEmpty()) {
@@ -1201,7 +1232,7 @@ public class ComputerEditorScreen extends WNodeScreen {
 
     private void renderTransferMenu(GuiGraphics graphics, int mouseX, int mouseY) {
         int menuWidth = 132;
-        int menuHeight = 94;
+        int menuHeight = 112;
         int x = Math.max(2, width - menuWidth - 60);
         int y = 26;
         boolean canExportNode = canExportSelectedNode();
@@ -1211,7 +1242,8 @@ public class ComputerEditorScreen extends WNodeScreen {
                 "Export Graph",
                 "Import Node",
                 nodeToDisk ? "Export Node to Disk" : "Export Selected Node",
-                "Set Computer ID");
+                "Set Computer ID",
+                "Set Computer Name");
         ComputedEditorStyle.drawMenuPanel(graphics, x, y, menuWidth, menuHeight);
         for (int index = 0; index < rows.size(); index++) {
             int rowY = y + 2 + index * 18;
@@ -1230,7 +1262,7 @@ public class ComputerEditorScreen extends WNodeScreen {
 
     private boolean handleTransferMenuClick(double mouseX, double mouseY, int button) {
         int menuWidth = 132;
-        int menuHeight = 94;
+        int menuHeight = 112;
         int x = Math.max(2, width - menuWidth - 60);
         int y = 26;
         if (button != 0 || !contains(mouseX, mouseY, x, y, menuWidth, menuHeight)) {
@@ -1239,7 +1271,7 @@ public class ComputerEditorScreen extends WNodeScreen {
         }
         int row = ((int) mouseY - y - 2) / 18;
         if (row < 0
-                || row >= 5
+                || row >= 6
                 || !contains(mouseX, mouseY, x, y + 2 + row * 18, menuWidth, 18)) {
             transferMenuOpen = false;
             return true;
@@ -1257,6 +1289,9 @@ public class ComputerEditorScreen extends WNodeScreen {
         } else if (row == 4) {
             idInput.focus(fsComputerId >= 0 ? Integer.toString(fsComputerId) : "0");
             modal = Modal.SET_COMPUTER_ID;
+        } else if (row == 5) {
+            nameInput.focus(computerName);
+            modal = Modal.SET_COMPUTER_NAME;
         }
         return true;
     }
@@ -1284,6 +1319,7 @@ public class ComputerEditorScreen extends WNodeScreen {
             case OVERWRITE_GRAPH, OVERWRITE_NODE -> "File already exists";
             case DELETE_NODE -> "Delete user node";
             case SET_COMPUTER_ID -> "Set Computer ID";
+            case SET_COMPUTER_NAME -> "Set Computer Name";
             default -> "";
         };
         graphics.drawString(font, title, x + 8, y + 8, ComputedEditorTheme.TEXT_HEADER, false);
@@ -1376,6 +1412,23 @@ public class ComputerEditorScreen extends WNodeScreen {
                     y + 50,
                     ComputedEditorTheme.TEXT_SECONDARY,
                     false);
+        } else if (modal == Modal.SET_COMPUTER_NAME) {
+            ComputedEditorStyle.drawField(
+                    graphics,
+                    x + 8,
+                    y + 27,
+                    boxWidth - 16,
+                    18,
+                    nameInput.focused(),
+                    contains(mouseX, mouseY, x + 8, y + 27, boxWidth - 16, 18));
+            graphics.drawString(font, nameInput.text(), x + 12, y + 32, ComputedEditorTheme.TEXT_PRIMARY, false);
+            graphics.drawString(
+                    font,
+                    "Shown on portable monitors. Empty = unnamed.",
+                    x + 8,
+                    y + 50,
+                    ComputedEditorTheme.TEXT_SECONDARY,
+                    false);
         } else if (modal == Modal.DELETE_NODE) {
             graphics.drawString(font, "Delete definition and all its instances?", x + 8, y + 28, ComputedEditorTheme.TEXT_SECONDARY, false);
         } else {
@@ -1403,6 +1456,8 @@ public class ComputerEditorScreen extends WNodeScreen {
             drawButton(graphics, cancelX - 62, buttonY, 58, 18, "Save", mouseX, mouseY);
             drawButton(graphics, cancelX - 124, buttonY, 58, 18, "Disk", mouseX, mouseY);
         } else if (modal == Modal.SET_COMPUTER_ID) {
+            drawButton(graphics, cancelX - 62, buttonY, 58, 18, "Set", mouseX, mouseY);
+        } else if (modal == Modal.SET_COMPUTER_NAME) {
             drawButton(graphics, cancelX - 62, buttonY, 58, 18, "Set", mouseX, mouseY);
         } else if (modal == Modal.DELETE_NODE) {
             boolean hovered = contains(mouseX, mouseY, x + 8, buttonY, 58, 18);
@@ -1479,6 +1534,12 @@ public class ComputerEditorScreen extends WNodeScreen {
             } else if (contains(mouseX, mouseY, cancelX - 62, buttonY, 58, 18)) {
                 confirmSetComputerId();
             }
+        } else if (modal == Modal.SET_COMPUTER_NAME) {
+            if (contains(mouseX, mouseY, x + 8, y + 27, boxWidth - 16, 18)) {
+                nameInput.click(inputColumn(mouseX, x + 12, nameInput.text()), hasShiftDown());
+            } else if (contains(mouseX, mouseY, cancelX - 62, buttonY, 58, 18)) {
+                confirmSetComputerName();
+            }
         } else if (modal == Modal.OVERWRITE_GRAPH || modal == Modal.OVERWRITE_NODE) {
             boolean overwrite = contains(mouseX, mouseY, x + 4, y + 24, boxWidth - 8, 18);
             boolean suffix = contains(mouseX, mouseY, x + 4, y + 42, boxWidth - 8, 18);
@@ -1546,7 +1607,8 @@ public class ComputerEditorScreen extends WNodeScreen {
         if (modal == Modal.EXPORT_GRAPH_NAME || modal == Modal.DELETE_NODE) return 82;
         if (modal == Modal.OVERWRITE_GRAPH
                 || modal == Modal.OVERWRITE_NODE
-                || modal == Modal.SET_COMPUTER_ID) return 94;
+                || modal == Modal.SET_COMPUTER_ID
+                || modal == Modal.SET_COMPUTER_NAME) return 94;
         return importListHeight(importRows) + 52;
     }
 

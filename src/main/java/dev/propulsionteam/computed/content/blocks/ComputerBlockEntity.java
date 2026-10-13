@@ -86,6 +86,7 @@ public class ComputerBlockEntity extends BaseContainerBlockEntity
     private CompoundTag unreadableProgramData;
     private UUID computerUuid;
     private int computerId = -1;
+    private String customName = "";
     private long programRevision;
     private transient boolean dropsHandled;
     private transient String lastGraphDiagnostics = "";
@@ -331,6 +332,7 @@ public class ComputerBlockEntity extends BaseContainerBlockEntity
         ContainerHelper.loadAllItems(tag, items, registries);
         computerUuid = tag.hasUUID("ComputerUUID") ? tag.getUUID("ComputerUUID") : null;
         computerId = tag.contains(COMPUTER_ID_TAG) ? tag.getInt(COMPUTER_ID_TAG) : -1;
+        customName = tag.getString("CustomName");
         loadProgramData(tag);
     }
 
@@ -345,6 +347,34 @@ public class ComputerBlockEntity extends BaseContainerBlockEntity
         if (computerId >= 0) {
             tag.putInt(COMPUTER_ID_TAG, computerId);
         }
+        tag.putString("CustomName", customName);
+    }
+
+    /** Player-chosen display name (empty = unnamed). Named without the Nameable Component clash. */
+    public String computerName() {
+        return customName;
+    }
+
+    /** Sets the sanitized player-chosen display name. */
+    public void setComputerName(String name) {
+        customName = sanitizeComputerName(name);
+    }
+
+    /** Trim, strip control characters, cap length; empty means "unnamed". */
+    public static String sanitizeComputerName(String name) {
+        if (name == null) {
+            return "";
+        }
+        StringBuilder clean = new StringBuilder(32);
+        for (char c : name.strip().toCharArray()) {
+            if (clean.length() >= 32) {
+                break;
+            }
+            if (c >= 0x20 && c != 0x7F) {
+                clean.append(c);
+            }
+        }
+        return clean.toString().strip();
     }
 
     public UUID getOrCreateUuid() {
@@ -444,6 +474,7 @@ public class ComputerBlockEntity extends BaseContainerBlockEntity
     public CompoundTag getUpdateTag(HolderLookup.Provider registries) {
         CompoundTag tag = super.getUpdateTag(registries);
         tag.putInt(COMPUTER_ID_TAG, computerId);
+        tag.putString("CustomName", customName);
         writeStoredProgram(tag);
         return tag;
     }
@@ -452,6 +483,7 @@ public class ComputerBlockEntity extends BaseContainerBlockEntity
     public void handleUpdateTag(CompoundTag tag, HolderLookup.Provider registries) {
         super.handleUpdateTag(tag, registries);
         computerId = tag.contains(COMPUTER_ID_TAG) ? tag.getInt(COMPUTER_ID_TAG) : computerId;
+        customName = tag.contains("CustomName") ? tag.getString("CustomName") : customName;
         loadProgramData(tag);
     }
 

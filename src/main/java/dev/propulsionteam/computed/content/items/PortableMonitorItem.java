@@ -21,13 +21,14 @@ import dev.propulsionteam.computed.content.blocks.ComputerBlockEntity;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * Handheld windowed screen that mirrors the widgets of a linked computer. Right-click a computer
- * to link; use again to open the display; sneak-use in air clears the link (or copies it from a
- * bound {@link LinkCardItem} held in the offhand).
+ * Handheld windowed screen that mirrors the widgets of linked computers. Right-click a computer to
+ * add it as a channel (up to {@link PortableMonitorLinks#MAX_CHANNELS}); use again to open the
+ * display with a channel selector; sneak-use a computer to remove its channel; sneak-use in air
+ * clears all channels (or copies a single link from a bound {@link LinkCardItem} in the offhand).
  */
 public class PortableMonitorItem extends Item {
-    /** Key of the stored link tag inside the {@code custom_data} component. */
-    public static final String CARD_KEY = "StoredLink";
+    /** Legacy key of the stored link tag; new writes use {@link PortableMonitorLinks}. */
+    public static final String CARD_KEY = PortableMonitorLinks.LEGACY_KEY;
     /**
      * Virtual canvas in widget pixels: 16:9 landscape with four 32px widget lines. The windowed
      * screen letterboxes this into whatever GUI size fits.
@@ -39,43 +40,77 @@ public class PortableMonitorItem extends Item {
         super(properties);
     }
 
-    /** Stored link, or {@code null}. */
+    /** Stored channels in slot order, or an empty list. */
+    public static List<PortableLinkData> readLinks(ItemStack monitor) {
+        CompoundTag tag = readRoot(monitor);
+        return tag == null ? List.of() : PortableMonitorLinks.readList(tag);
+    }
+
+    /** Index of the active channel (clamped into the stored list). */
+    public static int readActiveIndex(ItemStack monitor) {
+        CompoundTag tag = readRoot(monitor);
+        return tag == null ? 0 : PortableMonitorLinks.readActive(tag);
+    }
+
+    /** First (or active) stored link, or {@code null}. */
     @Nullable
     public static PortableLinkData readLink(ItemStack monitor) {
-        if (monitor.isEmpty() || !(monitor.getItem() instanceof PortableMonitorItem)) {
+        List<PortableLinkData> links = readLinks(monitor);
+        if (links.isEmpty()) {
             return null;
         }
-        CustomData data = monitor.get(DataComponents.CUSTOM_DATA);
-        if (data == null) {
-            return null;
-        }
-        CompoundTag tag = data.copyTag().getCompound(CARD_KEY);
-        if (!tag.contains("dimension")) {
-            return null;
-        }
-        try {
-            return PortableLinkData.of(tag);
-        } catch (IllegalArgumentException exception) {
-            return null;
-        }
+        return links.get(Math.min(readActiveIndex(monitor), links.size() - 1));
     }
 
-    /** Stores the link. */
+    /** Replaces all channels with a single link (used by the link-card copy). */
     public static void writeLink(ItemStack monitor, PortableLinkData link) {
-        CustomData existing = monitor.get(DataComponents.CUSTOM_DATA);
-        CompoundTag tag = existing == null ? new CompoundTag() : existing.copyTag();
-        tag.put(CARD_KEY, link.toTag());
-        monitor.set(DataComponents.CUSTOM_DATA, CustomData.of(tag));
+        writeState(monitor, List.of(link), 0);
     }
 
-    /** Clears the stored link. */
-    public static void clearLink(ItemStack monitor) {
+    /**
+     * Adds the link as a channel (or selects it when already present). Returns the channel index,
+     * or {@code -1} when the list is full.
+     */
+    public static int addLink(ItemStack monitor, PortableLinkData link) {
+        PortableMonitorLinks.AddResult result =
+                PortableMonitorLinks.add(readLinks(monitor), link);
+        if (result.index() < 0) {
+            return -1;
+        }
+        writeState(monitor, result.links(), result.index());
+        return result.index();
+    }
+
+    /** Removes the channel; returns {@code {@code true}} when it was present. */
+    public static boolean removeLink(ItemStack monitor, PortableLinkData link) {
+        List<PortableLinkData> links = readLinks(monitor);
+        if (!links.contains(link)) {
+            return false;
+        }
+        int active = readActiveIndex(monitor);
+        List<PortableLinkData> next = PortableMonitorLinks.remove(links, link);
+        writeState(monitor, next, Math.min(active, Math.max(0, next.size() - 1)));
+        return true;
+    }
+
+    /** Selects an existing channel; returns {@code false} when the index is out of range. */
+    public static boolean setActiveIndex(ItemStack monitor, int index) {
+        List<PortableLinkData> links = readLinks(monitor);
+        if (index < 0 || index >= links.size()) {
+            return false;
+        }
+        writeState(monitor, links, index);
+        return true;
+    }
+
+    /** Clears all channels. */
+    public static void clearLinks(ItemStack monitor) {
         CustomData existing = monitor.get(DataComponents.CUSTOM_DATA);
         if (existing == null) {
             return;
         }
         CompoundTag tag = existing.copyTag();
-        tag.remove(CARD_KEY);
+        PortableMonitorLinks.writeList(tag, List.of(), 0);
         if (tag.isEmpty()) {
             monitor.remove(DataComponents.CUSTOM_DATA);
         } else {
@@ -83,7 +118,7 @@ public class PortableMonitorItem extends Item {
         }
     }
 
-    /** True when the given stack is this item with a stored link. */
+    /** True when the given stack is this item with at least one stored channel. */
     public static boolean isPaired(ItemStack stack) {
         return !stack.isEmpty() && stack.getItem() instanceof PortableMonitorItem && readLink(stack) != null;
     }
@@ -101,12 +136,31 @@ public class PortableMonitorItem extends Item {
         if (!(level.getBlockEntity(pos) instanceof ComputerBlockEntity)) {
             return InteractionResult.PASS;
         }
+        PortableLinkData link = new PortableLinkData(
+                pos.getX(), pos.getY(), pos.getZ(), level.dimension().location().toString());
+        if (context.isSecondaryUseActive()) {
+            if (level.isClientSide) {
+                return InteractionResult.sidedSuccess(true);
+            }
+            if (removeLink(context.getItemInHand(), link)) {
+                context.getPlayer().displayClientMessage(Component.translatable(
+                        "item.computed.portable_monitor.removed",
+                        pos.getX(), pos.getY(), pos.getZ()), true);
+            }
+            return InteractionResult.CONSUME;
+        }
         if (level.isClientSide) {
             return InteractionResult.sidedSuccess(true);
         }
-        PortableLinkData link = new PortableLinkData(
-                pos.getX(), pos.getY(), pos.getZ(), level.dimension().location().toString());
-        writeLink(context.getItemInHand(), link);
+        int index = addLink(context.getItemInHand(), link);
+        if (index < 0) {
+            if (context.getPlayer() != null) {
+                context.getPlayer().displayClientMessage(Component.translatable(
+                        "item.computed.portable_monitor.full",
+                        PortableMonitorLinks.MAX_CHANNELS), true);
+            }
+            return InteractionResult.CONSUME;
+        }
         if (context.getPlayer() != null) {
             context.getPlayer().displayClientMessage(Component.translatable(
                     "item.computed.portable_monitor.linked", pos.getX(), pos.getY(), pos.getZ()), true);
@@ -128,16 +182,18 @@ public class PortableMonitorItem extends Item {
                         "item.computed.portable_monitor.copied",
                         cardLink.x(), cardLink.y(), cardLink.z()), true);
             } else {
-                clearLink(stack);
+                clearLinks(stack);
                 player.displayClientMessage(
                         Component.translatable("item.computed.portable_monitor.cleared"), true);
             }
             return InteractionResultHolder.consume(stack);
         }
         if (level.isClientSide) {
-            PortableLinkData link = readLink(stack);
-            if (link != null) {
-                PortableDisplayBridge.openScreen(link.blockPos());
+            List<PortableLinkData> links = readLinks(stack);
+            if (!links.isEmpty()) {
+                PortableDisplayBridge.openScreen(
+                        links.stream().map(PortableLinkData::blockPos).toList(),
+                        readActiveIndex(stack));
             } else {
                 player.displayClientMessage(
                         Component.translatable("item.computed.portable_monitor.hint"), true);
@@ -151,14 +207,40 @@ public class PortableMonitorItem extends Item {
     public void appendHoverText(
             ItemStack stack, TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
         super.appendHoverText(stack, context, tooltip, flag);
-        PortableLinkData link = readLink(stack);
-        if (link == null) {
+        List<PortableLinkData> links = readLinks(stack);
+        if (links.isEmpty()) {
             tooltip.add(Component.translatable("item.computed.portable_monitor.unlinked_hint")
                     .withStyle(ChatFormatting.DARK_GRAY));
             return;
         }
+        PortableLinkData link = links.get(Math.min(readActiveIndex(stack), links.size() - 1));
         tooltip.add(Component.translatable(
                         "item.computed.portable_monitor.paired", link.x(), link.y(), link.z())
                 .withStyle(ChatFormatting.GRAY));
+        if (links.size() > 1) {
+            tooltip.add(Component.translatable(
+                            "item.computed.portable_monitor.channels", links.size())
+                    .withStyle(ChatFormatting.DARK_GRAY));
+        }
+    }
+
+    @Nullable
+    private static CompoundTag readRoot(ItemStack monitor) {
+        if (monitor.isEmpty() || !(monitor.getItem() instanceof PortableMonitorItem)) {
+            return null;
+        }
+        CustomData data = monitor.get(DataComponents.CUSTOM_DATA);
+        return data == null ? null : data.copyTag();
+    }
+
+    private static void writeState(ItemStack monitor, List<PortableLinkData> links, int active) {
+        CustomData existing = monitor.get(DataComponents.CUSTOM_DATA);
+        CompoundTag tag = existing == null ? new CompoundTag() : existing.copyTag();
+        PortableMonitorLinks.writeList(tag, links, active);
+        if (tag.isEmpty()) {
+            monitor.remove(DataComponents.CUSTOM_DATA);
+        } else {
+            monitor.set(DataComponents.CUSTOM_DATA, CustomData.of(tag));
+        }
     }
 }
