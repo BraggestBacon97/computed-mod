@@ -1,5 +1,6 @@
 package dev.propulsionteam.computed.content;
 
+import dev.propulsionteam.computed.Computed;
 import dev.propulsionteam.computed.content.blocks.ComputerBlockEntity;
 import dev.propulsionteam.computed.content.blocks.SpeakerBlockEntity;
 import dev.propulsionteam.computed.lua.endpoint.ComputedEndpoints;
@@ -50,6 +51,17 @@ public final class SpeakerEndpoints {
                         null,
                         "Plays a registered sound event (namespace:path) at the speaker. "
                                 + "Volume defaults are relative to 1.0; pitch 1.0 is normal.")
+                .method(
+                        "play_wave",
+                        EndpointSignature.of(
+                                List.of(EndpointType.STRING, EndpointType.NUMBER, EndpointType.NUMBER),
+                                List.of()),
+                        EndpointPolicy.serverThread(true, false),
+                        SpeakerEndpoints::playWave,
+                        null,
+                        "Synthesizes a waveform tone at the speaker. "
+                                + "Wave: sine, square, saw, triangle, noise. "
+                                + "Frequency in Hz (55-3520, 440 = base pitch); volume 0-3.")
                 .method(
                         "play",
                         EndpointSignature.of(List.of(), List.of()),
@@ -104,6 +116,33 @@ public final class SpeakerEndpoints {
             throw new IllegalArgumentException("Unknown sound event: " + id);
         }
         return immediate();
+    }
+
+    /** Waveform synthesis: pitch-shift a generated base tone (440 Hz) to the requested frequency. */
+    private static EndpointResult playWave(EndpointInvocation invocation) {
+        SpeakerBlockEntity speaker = requireSpeaker(invocation);
+        String wave = invocation.arguments().get(0).checkjstring().toLowerCase(java.util.Locale.ROOT);
+        double frequency = Mth.clamp(invocation.arguments().get(1).checkdouble(), 55.0, 3520.0);
+        float volume = (float) Mth.clamp(invocation.arguments().get(2).checkdouble(), 0.0, 3.0);
+        float pitch = (float) Mth.clamp(frequency / 440.0, 0.25, 4.0);
+        ResourceLocation id;
+        switch (wave) {
+            case "sine", "sin" -> id = waveId("sine");
+            case "square", "sq" -> id = waveId("square");
+            case "saw", "sawtooth" -> id = waveId("saw");
+            case "triangle", "tri" -> id = waveId("triangle");
+            case "noise", "white" -> id = waveId("noise");
+            default -> throw new IllegalArgumentException(
+                    "Unknown wave: " + wave + " (use sine, square, saw, triangle, noise)");
+        }
+        if (!speaker.playSound(id, volume, pitch)) {
+            throw new IllegalArgumentException("Speaker sound not available: " + id);
+        }
+        return immediate();
+    }
+
+    private static ResourceLocation waveId(String wave) {
+        return ResourceLocation.fromNamespaceAndPath(Computed.MODID, "speaker_wave_" + wave);
     }
 
     private static EndpointResult play(EndpointInvocation invocation) {

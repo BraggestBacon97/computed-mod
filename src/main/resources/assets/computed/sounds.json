@@ -1,0 +1,17 @@
+{
+  "speaker_wave_sine": {
+    "sounds": ["computed:waves/sine"]
+  },
+  "speaker_wave_square": {
+    "sounds": ["computed:waves/square"]
+  },
+  "speaker_wave_saw": {
+    "sounds": ["computed:waves/saw"]
+  },
+  "speaker_wave_triangle": {
+    "sounds": ["computed:waves/triangle"]
+  },
+  "speaker_wave_noise": {
+    "sounds": ["computed:waves/noise"]
+  }
+}

@@ -63,6 +63,7 @@ public final class BundledLuaLibrary {
             new Entry("computed:color_source", "computed/lua/nodes/sources/color.lua"),
             new Entry("computed:speaker_play_note", "computed/lua/nodes/speaker/play_note.lua"),
             new Entry("computed:speaker_play_sound", "computed/lua/nodes/speaker/play_sound.lua"),
+            new Entry("computed:speaker_play_wave", "computed/lua/nodes/speaker/play_wave.lua"),
             new Entry("computed:speaker_play_disc", "computed/lua/nodes/speaker/play_disc.lua"),
             new Entry("computed:speaker_stop", "computed/lua/nodes/speaker/stop.lua"),
             new Entry("computed:speaker_eject", "computed/lua/nodes/speaker/eject.lua"),
@@ -72,13 +73,17 @@ public final class BundledLuaLibrary {
             new Entry("computed:if_branch", "computed/lua/nodes/flow/if.lua"),
             new Entry("computed:switch", "computed/lua/nodes/flow/switch.lua"),
             new Entry("computed:rgb_preview", "computed/lua/nodes/io/rgb_preview.lua"),
-            new Entry("computed:aeronautics_telemetry", "computed/lua/nodes/integration/aeronautics/telemetry.lua"));
+            new Entry("computed:aeronautics_telemetry", "computed/lua/nodes/integration/aeronautics/telemetry.lua", "create"));
 
     private BundledLuaLibrary() {}
 
     public static Map<String, LuaDefinitionSource> load() {
         Map<String, LuaDefinitionSource> definitions = new LinkedHashMap<>();
         for (Entry entry : ENTRIES) {
+            if (entry.requiredMod() != null && !isModLoaded(entry.requiredMod())) {
+                // CC-style: nodes for a mod that isn't installed stay hidden.
+                continue;
+            }
             add(definitions, entry.id(), read(entry.resource()));
         }
         unarySpecs().forEach(spec -> add(
@@ -203,7 +208,23 @@ public final class BundledLuaLibrary {
         return source.replace("\r\n", "\n").replace('\r', '\n');
     }
 
-    private record Entry(String id, String resource) {}
+    /**
+     * True when the mod is loaded. Outside a running game (plain unit tests, bare dev classpath)
+     * FML is unavailable — treat gated nodes as present so bundled definitions stay testable.
+     */
+    private static boolean isModLoaded(String modId) {
+        try {
+            return net.neoforged.fml.ModList.get().isLoaded(modId);
+        } catch (Throwable unavailableInThisEnvironment) {
+            return true;
+        }
+    }
+
+    private record Entry(String id, String resource, String requiredMod) {
+        Entry(String id, String resource) {
+            this(id, resource, null);
+        }
+    }
 
     private record Spec(String id, String title, String category, String expression) {}
 }

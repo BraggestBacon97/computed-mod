@@ -6,9 +6,11 @@ import dev.propulsionteam.computed.content.blocks.ComputerBlockEntity;
 import dev.propulsionteam.computed.content.blocks.ComputerBlockItem;
 import dev.propulsionteam.computed.content.blocks.SpeakerBlock;
 import dev.propulsionteam.computed.content.blocks.SpeakerBlockEntity;
+import dev.propulsionteam.computed.content.items.GeoPortableMonitorItem;
 import dev.propulsionteam.computed.content.items.LinkCardItem;
 import dev.propulsionteam.computed.content.items.PortableMonitorItem;
 import dev.propulsionteam.computed.content.items.ProgramDiskItem;
+import dev.propulsionteam.computed.integration.geckolib.GeckoLibSupport;
 import dev.propulsionteam.computed.content.monitors.MonitorBlock;
 import dev.propulsionteam.computed.content.monitors.MonitorBlockEntity;
 import dev.propulsionteam.computed.content.monitors.MonitorBlockItem;
@@ -28,6 +30,7 @@ import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.common.extensions.IMenuTypeExtension;
 
+import net.minecraft.resources.ResourceLocation;
 import net.neoforged.neoforge.registries.DeferredBlock;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredItem;
@@ -42,6 +45,30 @@ public final class ComputedRegistries {
             DeferredRegister.create(Registries.MENU, Computed.MODID);
     public static final DeferredRegister<CreativeModeTab> CREATIVE_MODE_TABS =
             DeferredRegister.create(Registries.CREATIVE_MODE_TAB, Computed.MODID);
+    public static final DeferredRegister<net.minecraft.sounds.SoundEvent> SOUND_EVENTS =
+            DeferredRegister.create(Registries.SOUND_EVENT, Computed.MODID);
+
+    /** Base tones for the speaker synthesizer; pitch-shifted per requested frequency. */
+    public static final DeferredHolder<net.minecraft.sounds.SoundEvent, net.minecraft.sounds.SoundEvent> SPEAKER_WAVE_SINE =
+            SOUND_EVENTS.register("speaker_wave_sine",
+                    () -> net.minecraft.sounds.SoundEvent.createVariableRangeEvent(
+                            ResourceLocation.fromNamespaceAndPath(Computed.MODID, "speaker_wave_sine")));
+    public static final DeferredHolder<net.minecraft.sounds.SoundEvent, net.minecraft.sounds.SoundEvent> SPEAKER_WAVE_SQUARE =
+            SOUND_EVENTS.register("speaker_wave_square",
+                    () -> net.minecraft.sounds.SoundEvent.createVariableRangeEvent(
+                            ResourceLocation.fromNamespaceAndPath(Computed.MODID, "speaker_wave_square")));
+    public static final DeferredHolder<net.minecraft.sounds.SoundEvent, net.minecraft.sounds.SoundEvent> SPEAKER_WAVE_SAW =
+            SOUND_EVENTS.register("speaker_wave_saw",
+                    () -> net.minecraft.sounds.SoundEvent.createVariableRangeEvent(
+                            ResourceLocation.fromNamespaceAndPath(Computed.MODID, "speaker_wave_saw")));
+    public static final DeferredHolder<net.minecraft.sounds.SoundEvent, net.minecraft.sounds.SoundEvent> SPEAKER_WAVE_TRIANGLE =
+            SOUND_EVENTS.register("speaker_wave_triangle",
+                    () -> net.minecraft.sounds.SoundEvent.createVariableRangeEvent(
+                            ResourceLocation.fromNamespaceAndPath(Computed.MODID, "speaker_wave_triangle")));
+    public static final DeferredHolder<net.minecraft.sounds.SoundEvent, net.minecraft.sounds.SoundEvent> SPEAKER_WAVE_NOISE =
+            SOUND_EVENTS.register("speaker_wave_noise",
+                    () -> net.minecraft.sounds.SoundEvent.createVariableRangeEvent(
+                            ResourceLocation.fromNamespaceAndPath(Computed.MODID, "speaker_wave_noise")));
 
     public static final DeferredHolder<MenuType<?>, MenuType<?>> COMPUTER_PERIPHERAL_MENU =
             MENU_TYPES.register(
@@ -121,8 +148,11 @@ public final class ComputedRegistries {
     public static final DeferredItem<LinkCardItem> LINK_CARD_ITEM =
             ITEMS.register("link_card", () -> new LinkCardItem(new Item.Properties().stacksTo(1)));
 
-    public static final DeferredItem<PortableMonitorItem> PORTABLE_MONITOR_ITEM =
-            ITEMS.register("portable_monitor", () -> new PortableMonitorItem(new Item.Properties().stacksTo(1)));
+    public static final DeferredItem<PortableMonitorItem> PORTABLE_MONITOR_ITEM = ITEMS.register(
+            "portable_monitor",
+            () -> GeckoLibSupport.isLoaded()
+                    ? new GeoPortableMonitorItem(new Item.Properties().stacksTo(1))
+                    : new PortableMonitorItem(new Item.Properties().stacksTo(1)));
 
     public static final DeferredHolder<CreativeModeTab, CreativeModeTab> MAIN_TAB =
             CREATIVE_MODE_TABS.register(
@@ -149,5 +179,6 @@ public final class ComputedRegistries {
         BLOCK_ENTITY_TYPES.register(modEventBus);
         MENU_TYPES.register(modEventBus);
         CREATIVE_MODE_TABS.register(modEventBus);
+        SOUND_EVENTS.register(modEventBus);
     }
 }

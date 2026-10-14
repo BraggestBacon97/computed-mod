@@ -218,6 +218,11 @@ dependencies {
     compileOnly "mcp.mobius.waila:wthit-api:${wthit_version}"
     localRuntime "mcp.mobius.waila:wthit:${wthit_version}"
 
+    // GeckoLib (optional): keyframe-animated items. Compile-only so the mod loads without it;
+    // the full jar is dev-run-only, same as Jade.
+    compileOnly "maven.modrinth:geckolib:${geckolib_version}"
+    localRuntime "maven.modrinth:geckolib:${geckolib_version}"
+
     // Other dev-only jars in /libs (not published); skip Create/Flywheel/Ponder filenames so Maven deps are not duplicated.
     localRuntime fileTree(dir: layout.projectDirectory.dir('libs'), include: ['*.jar']).matching {
         exclude 'flywheel*.jar'
