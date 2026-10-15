@@ -1,5 +1,8 @@
 # Computed
 
+NOT MY MOD, FORKED FROM [The Propulsion Team](https://github.com/Propulsion-Team/computed-mod).
+IM JUST MESSING AROUND WITH THIS MOD AND ADDING MY OWN SPIN TO IT. 
+
 Computed is a NeoForge 1.21.1 programmable Lua node-graph mod. LuaJ powers one sandboxed VM per
 computer while Computed owns graph scheduling, safe Minecraft endpoints, persistence, networking,
 the editor, monitor rendering, and integrations.
