@@ -2,7 +2,9 @@ package dev.propulsionteam.computed.client.renderer;
 
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import dev.propulsionteam.computed.content.monitors.widgets.ButtonWidget;
+import dev.propulsionteam.computed.content.monitors.widgets.CheckboxWidget;
 import dev.propulsionteam.computed.content.monitors.widgets.ClockWidget;
+import dev.propulsionteam.computed.content.monitors.widgets.NumberWidget;
 import dev.propulsionteam.computed.content.monitors.widgets.PanelWidget;
 import dev.propulsionteam.computed.content.monitors.widgets.ProgressBarWidget;
 import dev.propulsionteam.computed.content.monitors.widgets.SliderWidget;
@@ -10,6 +12,7 @@ import dev.propulsionteam.computed.content.monitors.widgets.TableWidget;
 import dev.propulsionteam.computed.content.monitors.widgets.TerminalWidget;
 import dev.propulsionteam.computed.content.monitors.widgets.TextAlignment;
 import dev.propulsionteam.computed.content.monitors.widgets.TextBlockWidget;
+import dev.propulsionteam.computed.content.monitors.widgets.TextInputWidget;
 import dev.propulsionteam.computed.content.monitors.widgets.TextWidget;
 import dev.propulsionteam.computed.content.monitors.widgets.Widget;
 import java.util.List;
@@ -48,6 +51,10 @@ public final class MonitorWidgetPainter {
             outline(edgeMat, gui, tw.x(), tw.y(), tw.x() + tw.w(), tw.y() + tw.h(), 0xFFFFFFFF);
             drawText(font, textMat, bufferSource, tw.text(), tw.x(), tw.y(), tw.w(), tw.h(),
                     tw.colorArgb(), tw.alignment());
+        } else if (w instanceof NumberWidget nw) {
+            outline(edgeMat, gui, nw.x(), nw.y(), nw.x() + nw.w(), nw.y() + nw.h(), 0xFFFFFFFF);
+            drawText(font, textMat, bufferSource, nw.text(), nw.x(), nw.y(), nw.w(), nw.h(),
+                    nw.colorArgb(), nw.alignment());
         } else if (w instanceof ClockWidget cw) {
             long time = Minecraft.getInstance().level == null
                     ? 0L
@@ -61,6 +68,27 @@ public final class MonitorWidgetPainter {
             outline(edgeMat, gui, bw.x(), bw.y(), bw.x() + bw.w(), bw.y() + bw.h(), 0xFFFFFFFF);
             drawCenteredText(font, textMat, bufferSource, bw.label(), bw.x(), bw.y(), bw.w(), bw.h(),
                     contrastText(bw.colorArgb()));
+        } else if (w instanceof CheckboxWidget cw) {
+            int box = Math.max(6, Math.min(cw.h() - 2, 10));
+            int bx = cw.x() + 2;
+            int by = cw.y() + (cw.h() - box) / 2;
+            fill(fillMat, gui, bx, by, bx + box, by + box, 0xFF202020);
+            outline(edgeMat, gui, bx, by, bx + box, by + box, cw.colorArgb());
+            if (cw.checked()) {
+                fill(detailMat, gui, bx + 2, by + 2, bx + box - 2, by + box - 2, cw.colorArgb());
+            }
+            drawText(font, textMat, bufferSource, cw.label(), bx + box + 3, cw.y(),
+                    Math.max(0, cw.w() - box - 5), cw.h(), 0xFFFFFFFF, TextAlignment.LEFT);
+        } else if (w instanceof TextInputWidget ti) {
+            fill(fillMat, gui, ti.x(), ti.y(), ti.x() + ti.w(), ti.y() + ti.h(), 0xFF101014);
+            outline(edgeMat, gui, ti.x(), ti.y(), ti.x() + ti.w(), ti.y() + ti.h(), ti.colorArgb());
+            boolean empty = ti.value() == null || ti.value().isEmpty();
+            String display = empty
+                    ? (ti.placeholder() == null ? "" : ti.placeholder())
+                    : ti.value();
+            int color = empty ? 0xFF808080 : ti.colorArgb();
+            drawText(font, textMat, bufferSource, display, ti.x() + 3, ti.y(),
+                    Math.max(0, ti.w() - 6), ti.h(), color, TextAlignment.LEFT);
         } else if (w instanceof SliderWidget sw) {
             int barY1 = sw.y() + sw.h() / 2 - 2;
             int barY2 = sw.y() + sw.h() / 2 + 2;

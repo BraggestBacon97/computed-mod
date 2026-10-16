@@ -9,8 +9,9 @@ import java.util.UUID;
  * and for routing user input from the client back to the originating node on the server.
  */
 public sealed interface Widget permits
-        TextWidget, ClockWidget, ButtonWidget, SliderWidget, ProgressBarWidget, TerminalWidget,
-        PanelWidget, TextBlockWidget, TableWidget, LayoutManagedWidget {
+        TextWidget, ClockWidget, ButtonWidget, CheckboxWidget, SliderWidget, ProgressBarWidget,
+        TerminalWidget, PanelWidget, TextBlockWidget, TableWidget, TextInputWidget, NumberWidget,
+        LayoutManagedWidget {
 
     UUID id();
 

@@ -98,11 +98,17 @@ public final class MonitorWidgetLayout {
         if (raw instanceof TextWidget tw) {
             return new TextWidget(tw.id(), x, y, w, h, tw.text(), tw.colorArgb(), tw.alignment());
         }
+        if (raw instanceof NumberWidget nw) {
+            return new NumberWidget(nw.id(), x, y, w, h, nw.value(), nw.text(), nw.colorArgb(), nw.alignment());
+        }
         if (raw instanceof ClockWidget cw) {
             return new ClockWidget(cw.id(), x, y, w, h, cw.colorArgb(), cw.showSeconds(), cw.alignment());
         }
         if (raw instanceof ButtonWidget bw) {
             return new ButtonWidget(bw.id(), x, y, w, h, bw.label(), bw.colorArgb());
+        }
+        if (raw instanceof CheckboxWidget cw) {
+            return new CheckboxWidget(cw.id(), x, y, w, h, cw.label(), cw.colorArgb(), cw.checked());
         }
         if (raw instanceof SliderWidget sw) {
             return new SliderWidget(sw.id(), x, y, w, h, sw.value(), sw.min(), sw.max(), sw.colorArgb(), sw.step());
@@ -123,6 +129,9 @@ public final class MonitorWidgetLayout {
         if (raw instanceof TableWidget table) {
             return new TableWidget(table.id(), x, y, w, h, table.columns(), table.rows(),
                     table.headerFg(), table.headerBg(), table.cellFg(), table.cellBg());
+        }
+        if (raw instanceof TextInputWidget ti) {
+            return new TextInputWidget(ti.id(), x, y, w, h, ti.placeholder(), ti.value(), ti.colorArgb());
         }
         return raw;
     }

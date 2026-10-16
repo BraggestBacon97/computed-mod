@@ -12,7 +12,10 @@ public enum WidgetType {
     TERMINAL(TerminalWidget::decode),
     PANEL(PanelWidget::decode),
     TEXT_BLOCK(TextBlockWidget::decode),
-    TABLE(TableWidget::decode);
+    TABLE(TableWidget::decode),
+    CHECKBOX(CheckboxWidget::decode),
+    TEXT_INPUT(TextInputWidget::decode),
+    NUMBER(NumberWidget::decode);
 
     private final Decoder decoder;
 

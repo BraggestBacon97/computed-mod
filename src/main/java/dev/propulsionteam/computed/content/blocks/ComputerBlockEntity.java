@@ -6,9 +6,11 @@ import dev.propulsionteam.computed.content.Peripherals;
 import dev.propulsionteam.computed.content.items.ProgramDiskItem;
 import dev.propulsionteam.computed.content.monitors.MonitorBlockEntity;
 import dev.propulsionteam.computed.content.monitors.widgets.ButtonWidget;
+import dev.propulsionteam.computed.content.monitors.widgets.CheckboxWidget;
 import dev.propulsionteam.computed.content.monitors.widgets.ClockWidget;
 import dev.propulsionteam.computed.content.monitors.widgets.LayoutManagedWidget;
 import dev.propulsionteam.computed.content.monitors.widgets.MonitorWidgetLayout;
+import dev.propulsionteam.computed.content.monitors.widgets.NumberWidget;
 import dev.propulsionteam.computed.content.monitors.widgets.PanelWidget;
 import dev.propulsionteam.computed.content.monitors.widgets.ProgressBarWidget;
 import dev.propulsionteam.computed.content.monitors.widgets.SliderWidget;
@@ -16,6 +18,7 @@ import dev.propulsionteam.computed.content.monitors.widgets.TableWidget;
 import dev.propulsionteam.computed.content.monitors.widgets.TerminalWidget;
 import dev.propulsionteam.computed.content.monitors.widgets.TextAlignment;
 import dev.propulsionteam.computed.content.monitors.widgets.TextBlockWidget;
+import dev.propulsionteam.computed.content.monitors.widgets.TextInputWidget;
 import dev.propulsionteam.computed.content.monitors.widgets.TextWidget;
 import dev.propulsionteam.computed.content.monitors.widgets.Widget;
 import dev.propulsionteam.computed.content.monitors.widgets.WidgetDrawList;
@@ -76,6 +79,13 @@ public class ComputerBlockEntity extends BaseContainerBlockEntity
     public static final int DISK_SLOT_INDEX = CONTAINER_SIZE - 1;
     public static final String PROGRAM_TAG = "ComputedProgram";
     public static final String COMPUTER_ID_TAG = "ComputerId";
+    /**
+     * NBT key for the player-chosen display name. Deliberately not {@code "CustomName"}: the
+     * vanilla container code parses that key as a Component JSON and logs a parse warning for
+     * our plain strings. Worlds saved with the old key migrate on load.
+     */
+    private static final String COMPUTER_NAME_TAG = "ComputedName";
+    private static final String LEGACY_NAME_TAG = "CustomName";
     public static final String DISK_TAG = "ComputerDisk";
     /** Marks that the drive slot holds a disk, even one without stored program data. */
     public static final String DISK_PRESENT_TAG = "ComputerDiskPresent";
@@ -180,6 +190,14 @@ public class ComputerBlockEntity extends BaseContainerBlockEntity
                 nodeId,
                 "input",
                 org.luaj.vm2.LuaValue.valueOf(value));
+    }
+
+    /** Routes a submitted text-input value to the node's {@code input} event handler. */
+    public boolean handleWidgetTextInput(UUID nodeId, String text) {
+        return ensureScheduler().eventNode(
+                nodeId,
+                "input",
+                org.luaj.vm2.LuaValue.valueOf(text == null ? "" : text));
     }
 
     public record ApplyGraphResult(boolean accepted, long serverRevision, String message) {
@@ -332,7 +350,7 @@ public class ComputerBlockEntity extends BaseContainerBlockEntity
         ContainerHelper.loadAllItems(tag, items, registries);
         computerUuid = tag.hasUUID("ComputerUUID") ? tag.getUUID("ComputerUUID") : null;
         computerId = tag.contains(COMPUTER_ID_TAG) ? tag.getInt(COMPUTER_ID_TAG) : -1;
-        customName = tag.getString("CustomName");
+        loadComputerName(tag);
         loadProgramData(tag);
     }
 
@@ -347,7 +365,18 @@ public class ComputerBlockEntity extends BaseContainerBlockEntity
         if (computerId >= 0) {
             tag.putInt(COMPUTER_ID_TAG, computerId);
         }
-        tag.putString("CustomName", customName);
+        if (!customName.isEmpty()) {
+            tag.putString(COMPUTER_NAME_TAG, customName);
+        }
+    }
+
+    /** Reads {@link #COMPUTER_NAME_TAG}, migrating the pre-rename plain-string {@code CustomName}. */
+    private void loadComputerName(CompoundTag tag) {
+        if (tag.contains(COMPUTER_NAME_TAG)) {
+            customName = tag.getString(COMPUTER_NAME_TAG);
+        } else if (tag.contains(LEGACY_NAME_TAG, Tag.TAG_STRING)) {
+            customName = tag.getString(LEGACY_NAME_TAG);
+        }
     }
 
     /** Player-chosen display name (empty = unnamed). Named without the Nameable Component clash. */
@@ -474,7 +503,9 @@ public class ComputerBlockEntity extends BaseContainerBlockEntity
     public CompoundTag getUpdateTag(HolderLookup.Provider registries) {
         CompoundTag tag = super.getUpdateTag(registries);
         tag.putInt(COMPUTER_ID_TAG, computerId);
-        tag.putString("CustomName", customName);
+        if (!customName.isEmpty()) {
+            tag.putString(COMPUTER_NAME_TAG, customName);
+        }
         writeStoredProgram(tag);
         return tag;
     }
@@ -483,7 +514,7 @@ public class ComputerBlockEntity extends BaseContainerBlockEntity
     public void handleUpdateTag(CompoundTag tag, HolderLookup.Provider registries) {
         super.handleUpdateTag(tag, registries);
         computerId = tag.contains(COMPUTER_ID_TAG) ? tag.getInt(COMPUTER_ID_TAG) : computerId;
-        customName = tag.contains("CustomName") ? tag.getString("CustomName") : customName;
+        loadComputerName(tag);
         loadProgramData(tag);
     }
 
@@ -901,6 +932,16 @@ public class ComputerBlockEntity extends BaseContainerBlockEntity
                     text(properties, "text"),
                     widget.color(),
                     alignment(properties));
+            case "number" -> new NumberWidget(
+                    widget.id(),
+                    widget.x(),
+                    widget.y(),
+                    widget.width(),
+                    widget.height(),
+                    number(properties, "value"),
+                    text(properties, "text"),
+                    widget.color(),
+                    alignment(properties));
             case "clock" -> new ClockWidget(
                     widget.id(),
                     widget.x(),
@@ -917,6 +958,24 @@ public class ComputerBlockEntity extends BaseContainerBlockEntity
                     widget.width(),
                     widget.height(),
                     text(properties, "label"),
+                    widget.color());
+            case "checkbox" -> new CheckboxWidget(
+                    widget.id(),
+                    widget.x(),
+                    widget.y(),
+                    widget.width(),
+                    widget.height(),
+                    text(properties, "label"),
+                    widget.color(),
+                    flag(properties, "checked"));
+            case "text_input" -> new TextInputWidget(
+                    widget.id(),
+                    widget.x(),
+                    widget.y(),
+                    widget.width(),
+                    widget.height(),
+                    text(properties, "placeholder"),
+                    text(properties, "value"),
                     widget.color());
             case "slider" -> new SliderWidget(
                     widget.id(),

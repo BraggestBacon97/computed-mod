@@ -164,6 +164,19 @@ public final class ComputedNetworking {
                 SetPortableSourcePayload.STREAM_CODEC,
                 ComputedNetworking::handleSetPortableSource);
         registrar.playToServer(
+                RemovePortableSourcePayload.TYPE,
+                RemovePortableSourcePayload.STREAM_CODEC,
+                ComputedNetworking::handleRemovePortableSource);
+        registrar.playToServer(
+                WidgetTextInputPayload.TYPE,
+                WidgetTextInputPayload.STREAM_CODEC,
+                ComputedNetworking::handleWidgetTextInput);
+        registrar.playToClient(
+                OpenWidgetTextInputPayload.TYPE,
+                OpenWidgetTextInputPayload.STREAM_CODEC,
+                (payload, ctx) -> ctx.enqueueWork(() -> dev.propulsionteam.computed.WidgetTextInputBridge.open(
+                        payload.originPos(), payload.widgetId(), payload.initialValue())));
+        registrar.playToServer(
                 SetComputerNamePayload.TYPE,
                 SetComputerNamePayload.STREAM_CODEC,
                 ComputedNetworking::handleSetComputerName);
@@ -291,23 +304,28 @@ public final class ComputedNetworking {
             int px = Math.min(screenW - 1, Math.max(0, (int) Math.floor(payload.u() * screenW)));
             int py = Math.min(screenH - 1, Math.max(0, (int) Math.floor(payload.v() * screenH)));
 
-            for (Widget w : widgets) {
-                if (px < w.x() || px >= w.x() + w.w() || py < w.y() || py >= w.y() + w.h()) continue;
-                double value = 1.0;
-                if (w instanceof SliderWidget sw) {
-                    double frac = sw.w() <= 0 ? 0.0 : (double) (px - sw.x()) / (double) sw.w();
-                    frac = Mth.clamp(frac, 0.0, 1.0);
-                    double min = sw.min();
-                    double max = sw.max();
-                    double raw = min + frac * (max - min);
-                    double step = sw.step();
-                    if (step > 0.0) {
-                        raw = min + Math.round((raw - min) / step) * step;
+                for (Widget w : widgets) {
+                    if (px < w.x() || px >= w.x() + w.w() || py < w.y() || py >= w.y() + w.h()) continue;
+                    if (w instanceof dev.propulsionteam.computed.content.monitors.widgets.TextInputWidget ti) {
+                        PacketDistributor.sendToPlayer(player, new OpenWidgetTextInputPayload(
+                                originPos, ti.id(), ti.value()));
+                        return;
                     }
-                    value = raw;
+                    double value = 1.0;
+                    if (w instanceof SliderWidget sw) {
+                        double frac = sw.w() <= 0 ? 0.0 : (double) (px - sw.x()) / (double) sw.w();
+                        frac = Mth.clamp(frac, 0.0, 1.0);
+                        double min = sw.min();
+                        double max = sw.max();
+                        double raw = min + frac * (max - min);
+                        double step = sw.step();
+                        if (step > 0.0) {
+                            raw = min + Math.round((raw - min) / step) * step;
+                        }
+                        value = raw;
+                    }
+                    if (computer.handleWidgetInput(w.id(), value)) return;
                 }
-                if (computer.handleWidgetInput(w.id(), value)) return;
-            }
         });
     }
 
@@ -598,6 +616,61 @@ public final class ComputedNetworking {
                     return;
                 }
             }
+        });
+    }
+
+    /** Unlinks the portable monitor channel whose tab was right-clicked. */
+    private static void handleRemovePortableSource(RemovePortableSourcePayload payload, IPayloadContext ctx) {
+        ctx.enqueueWork(() -> {
+            if (!(ctx.player() instanceof ServerPlayer player)) {
+                return;
+            }
+            for (net.minecraft.world.item.ItemStack stack : player.getInventory().items) {
+                if (stack.getItem() instanceof PortableMonitorItem) {
+                    PortableMonitorItem.removeAt(stack, payload.index());
+                    return;
+                }
+            }
+            for (net.minecraft.world.item.ItemStack stack : player.getInventory().offhand) {
+                if (stack.getItem() instanceof PortableMonitorItem) {
+                    PortableMonitorItem.removeAt(stack, payload.index());
+                    return;
+                }
+            }
+        });
+    }
+
+    /** Routes a submitted text-input string to the originating computer's node event. */
+    private static void handleWidgetTextInput(WidgetTextInputPayload payload, IPayloadContext ctx) {
+        ctx.enqueueWork(() -> {
+            if (!(ctx.player() instanceof ServerPlayer player)) return;
+            BlockPos originPos = payload.originPos();
+            BlockEntity be = player.level().getBlockEntity(originPos);
+
+            ComputerBlockEntity computer;
+            if (be instanceof MonitorBlockEntity origin) {
+                if (player.distanceToSqr(Vec3.atCenterOf(originPos)) > ComputerEditPolicy.MAX_DISTANCE_SQ) {
+                    return;
+                }
+                BlockPos ownerPos = origin.getOwnerComputerPos();
+                if (ownerPos == null) return;
+                BlockEntity ownerBe = player.level().getBlockEntity(ownerPos);
+                if (!(ownerBe instanceof ComputerBlockEntity ownerComputer)) return;
+                computer = ownerComputer;
+            } else if (be instanceof ComputerBlockEntity direct) {
+                if (!playerCarriesLinkTo(player, originPos)) {
+                    return;
+                }
+                computer = direct;
+            } else {
+                return;
+            }
+
+            String text = payload.text() == null ? "" : payload.text();
+            if (text.length() > WidgetTextInputPayload.MAX_LENGTH) {
+                text = text.substring(0, WidgetTextInputPayload.MAX_LENGTH);
+            }
+            computer.handleWidgetTextInput(payload.widgetId(), text);
         });
     }
 

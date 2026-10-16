@@ -93,6 +93,26 @@ public class PortableMonitorItem extends Item {
         return true;
     }
 
+    /** Removes the channel at {@code index}; returns {@code true} when the index was in range. */
+    public static boolean removeAt(ItemStack monitor, int index) {
+        List<PortableLinkData> links = readLinks(monitor);
+        if (index < 0 || index >= links.size()) {
+            return false;
+        }
+        int active = readActiveIndex(monitor);
+        List<PortableLinkData> next = PortableMonitorLinks.remove(links, links.get(index));
+        int newActive;
+        if (index < active) {
+            newActive = active - 1;
+        } else if (index == active) {
+            newActive = Math.min(active, Math.max(0, next.size() - 1));
+        } else {
+            newActive = active;
+        }
+        writeState(monitor, next, Math.max(0, newActive));
+        return true;
+    }
+
     /** Selects an existing channel; returns {@code false} when the index is out of range. */
     public static boolean setActiveIndex(ItemStack monitor, int index) {
         List<PortableLinkData> links = readLinks(monitor);

@@ -6,7 +6,6 @@ import dev.propulsionteam.computed.content.blocks.ComputerBlockEntity;
 import dev.propulsionteam.computed.content.blocks.ComputerBlockItem;
 import dev.propulsionteam.computed.content.blocks.SpeakerBlock;
 import dev.propulsionteam.computed.content.blocks.SpeakerBlockEntity;
-import dev.propulsionteam.computed.content.items.GeoPortableMonitorItem;
 import dev.propulsionteam.computed.content.items.LinkCardItem;
 import dev.propulsionteam.computed.content.items.PortableMonitorItem;
 import dev.propulsionteam.computed.content.items.ProgramDiskItem;
@@ -151,7 +150,7 @@ public final class ComputedRegistries {
     public static final DeferredItem<PortableMonitorItem> PORTABLE_MONITOR_ITEM = ITEMS.register(
             "portable_monitor",
             () -> GeckoLibSupport.isLoaded()
-                    ? new GeoPortableMonitorItem(new Item.Properties().stacksTo(1))
+                    ? GeckoLibSupport.createPortableMonitor(new Item.Properties().stacksTo(1))
                     : new PortableMonitorItem(new Item.Properties().stacksTo(1)));
 
     public static final DeferredHolder<CreativeModeTab, CreativeModeTab> MAIN_TAB =
@@ -166,6 +165,7 @@ public final class ComputedRegistries {
                                 output.accept(MONITOR_BLOCK_ITEM.get());
                                 output.accept(SPEAKER_BLOCK_ITEM.get());
                                 output.accept(PROGRAM_DISK_ITEM.get());
+                                output.accept(dev.propulsionteam.computed.content.items.ExamplePrograms.widgetDemoDisk());
                                 output.accept(LINK_CARD_ITEM.get());
                                 output.accept(PORTABLE_MONITOR_ITEM.get());
                             })

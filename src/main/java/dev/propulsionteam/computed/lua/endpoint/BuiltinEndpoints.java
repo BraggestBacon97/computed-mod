@@ -116,6 +116,15 @@ public final class BuiltinEndpoints {
                                         "alignment", "left"))),
                         "Creates a text widget value.")
                 .method(
+                        "number",
+                        EndpointSignature.of(
+                                List.of(EndpointType.NUMBER, EndpointType.STRING, EndpointType.NUMBER),
+                                List.of(EndpointType.TABLE)),
+                        EndpointPolicy.computerThread(false, true),
+                        invocation -> EndpointResult.immediate(numberWidget(invocation)),
+                        invocation -> EndpointResult.immediate(numberWidget(invocation)),
+                        "Creates a number widget value.")
+                .method(
                         "clock",
                         EndpointSignature.of(
                                 List.of(EndpointType.NUMBER, EndpointType.BOOLEAN),
@@ -133,6 +142,24 @@ public final class BuiltinEndpoints {
                         invocation -> EndpointResult.immediate(buttonWidget(invocation)),
                         invocation -> EndpointResult.immediate(buttonWidget(invocation)),
                         "Creates a button widget value.")
+                .method(
+                        "checkbox",
+                        EndpointSignature.of(
+                                List.of(EndpointType.STRING, EndpointType.NUMBER, EndpointType.BOOLEAN),
+                                List.of(EndpointType.TABLE)),
+                        EndpointPolicy.computerThread(false, true),
+                        invocation -> EndpointResult.immediate(checkboxWidget(invocation)),
+                        invocation -> EndpointResult.immediate(checkboxWidget(invocation)),
+                        "Creates a checkbox widget value.")
+                .method(
+                        "text_input",
+                        EndpointSignature.of(
+                                List.of(EndpointType.STRING, EndpointType.NUMBER, EndpointType.STRING),
+                                List.of(EndpointType.TABLE)),
+                        EndpointPolicy.computerThread(false, true),
+                        invocation -> EndpointResult.immediate(textInputWidget(invocation)),
+                        invocation -> EndpointResult.immediate(textInputWidget(invocation)),
+                        "Creates a text input widget value.")
                 .method(
                         "slider",
                         EndpointSignature.of(
@@ -280,6 +307,13 @@ public final class BuiltinEndpoints {
         return widget;
     }
 
+    private static LuaTable numberWidget(EndpointInvocation invocation) {
+        return widget(invocation.nodeId(), "number", Map.of(
+                "value", invocation.arguments().get(0).checkdouble(),
+                "text", argument(invocation, 1),
+                "color", invocation.arguments().get(2).checkint()));
+    }
+
     private static LuaTable clockWidget(EndpointInvocation invocation) {
         return widget(invocation.nodeId(), "clock", Map.of(
                 "color", invocation.arguments().get(0).checkint(),
@@ -289,6 +323,20 @@ public final class BuiltinEndpoints {
     private static LuaTable buttonWidget(EndpointInvocation invocation) {
         return widget(invocation.nodeId(), "button", Map.of(
                 "label", argument(invocation, 0),
+                "color", invocation.arguments().get(1).checkint()));
+    }
+
+    private static LuaTable checkboxWidget(EndpointInvocation invocation) {
+        return widget(invocation.nodeId(), "checkbox", Map.of(
+                "label", argument(invocation, 0),
+                "color", invocation.arguments().get(1).checkint(),
+                "checked", invocation.arguments().get(2).checkboolean()));
+    }
+
+    private static LuaTable textInputWidget(EndpointInvocation invocation) {
+        return widget(invocation.nodeId(), "text_input", Map.of(
+                "placeholder", argument(invocation, 0),
+                "value", argument(invocation, 2),
                 "color", invocation.arguments().get(1).checkint()));
     }
 
@@ -437,7 +485,7 @@ public final class BuiltinEndpoints {
         copyText(table, properties, "fit", "auto");
         copyNumber(table, properties, "line", 1);
         copyNumber(table, properties, "span", 1);
-        copyNumber(table, properties, "value", 0);
+        copyValue(table, properties, "value", 0);
         copyNumber(table, properties, "minimum", 0);
         copyNumber(table, properties, "maximum", 1);
         copyNumber(table, properties, "step", 1);
@@ -451,6 +499,8 @@ public final class BuiltinEndpoints {
         copyNumber(table, properties, "cell_fg", 0xFFFFFFFF);
         copyNumber(table, properties, "cell_bg", 0xFF000000);
         properties.put("show_seconds", table.get("show_seconds").optboolean(false));
+        properties.put("checked", table.get("checked").optboolean(false));
+        copyText(table, properties, "placeholder", "");
         copyRows(table, properties);
         copyTableData(table, properties);
         return new BuiltinWidget(
@@ -477,7 +527,28 @@ public final class BuiltinEndpoints {
             Map<String, Object> properties,
             String key,
             double fallback) {
-        properties.put(key, table.get(key).optdouble(fallback));
+        LuaValue value = table.get(key);
+        properties.put(key, value.isnumber() ? value.checkdouble() : fallback);
+    }
+
+    /**
+     * {@code value} is a text string for input widgets but a number for sliders and progress bars —
+     * keep the Lua type instead of coercing, otherwise a non-numeric string throws a Lua type error
+     * while the monitor builds its widget list.
+     */
+    private static void copyValue(
+            LuaTable table,
+            Map<String, Object> properties,
+            String key,
+            double fallback) {
+        LuaValue value = table.get(key);
+        if (value.type() == LuaValue.TSTRING) {
+            properties.put(key, value.tojstring());
+        } else if (value.type() == LuaValue.TNUMBER) {
+            properties.put(key, value.checkdouble());
+        } else {
+            properties.put(key, fallback);
+        }
     }
 
     private static void copyRows(LuaTable table, Map<String, Object> properties) {

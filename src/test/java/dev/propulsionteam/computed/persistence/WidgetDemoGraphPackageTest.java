@@ -185,6 +185,32 @@ class WidgetDemoGraphPackageTest {
         assertEquals(1, ((List<?>) rows).size());
     }
 
+    @Test
+    void textInputExampleRunsClean() throws IOException {
+        Path file = Path.of("src/main/resources/assets/computed/docs/computed/text_input_widget.computed");
+        assertNotNull(file.toFile().isFile(), "missing docs example " + file);
+        ComputedProgramV3 program = ComputedProgramPackage.importArchive(Files.readAllBytes(file));
+
+        Host host = new Host();
+        LuaGraphScheduler scheduler = new LuaGraphScheduler(program, uuid("text-input-scheduler"), host);
+        LuaGraphTickResult tick = scheduler.tick(false);
+        assertTrue(tick.diagnostics().isEmpty(), () -> tick.diagnostics().toString());
+        assertTrue(host.hasTasks(), "monitor show endpoint should be queued");
+        host.runNext();
+
+        LuaGraphTickResult second = scheduler.tick(false);
+        assertTrue(second.diagnostics().isEmpty(), () -> second.diagnostics().toString());
+
+        List<BuiltinWidget> widgets = host.monitorWidgets.getLast();
+        assertEquals("front", host.monitorTargets.getLast());
+        assertTrue(
+                widgets.stream().anyMatch(widget -> "text_input".equals(widget.type())),
+                () -> "no text_input widget delivered: " + widgets);
+        BuiltinWidget input =
+                widgets.stream().filter(widget -> "text_input".equals(widget.type())).findFirst().orElseThrow();
+        assertEquals("", input.properties().get("value"), "empty value must survive widget parsing");
+    }
+
     private static LuaDefinitionSource require(Map<String, LuaDefinitionSource> bundled, String id) {
         LuaDefinitionSource source = bundled.get(id);
         assertNotNull(source, "Missing bundled definition " + id);

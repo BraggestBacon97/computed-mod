@@ -7,6 +7,7 @@ import dev.propulsionteam.computed.content.monitors.widgets.Widget;
 import dev.propulsionteam.computed.content.monitors.widgets.WidgetDrawList;
 import dev.propulsionteam.computed.network.MonitorClickPayload;
 import dev.propulsionteam.computed.network.PullPortableDisplayPayload;
+import dev.propulsionteam.computed.network.RemovePortableSourcePayload;
 import dev.propulsionteam.computed.network.SetPortableSourcePayload;
 import io.netty.buffer.Unpooled;
 import java.util.List;
@@ -32,7 +33,7 @@ public class PortableMonitorScreen extends Screen {
     private static final int TAB_H = 12;
     private static final int TAB_GAP = 2;
 
-    private final List<BlockPos> sources;
+    private final java.util.ArrayList<BlockPos> sources;
     private int activeIndex;
     private BlockPos computerPos;
     private String computerName = "";
@@ -51,7 +52,9 @@ public class PortableMonitorScreen extends Screen {
 
     public PortableMonitorScreen(List<BlockPos> sources, int activeIndex) {
         super(Component.translatable("item.computed.portable_monitor"));
-        this.sources = sources.isEmpty() ? List.of() : List.copyOf(sources);
+        this.sources = sources.isEmpty()
+                ? new java.util.ArrayList<>()
+                : new java.util.ArrayList<>(sources);
         this.activeIndex = clampActive(this.sources, activeIndex);
         this.computerPos = this.sources.isEmpty() ? BlockPos.ZERO : this.sources.get(this.activeIndex);
     }
@@ -147,8 +150,41 @@ public class PortableMonitorScreen extends Screen {
             if (!drawList.isEmpty() && clickDisplay(mouseX, mouseY)) {
                 return true;
             }
+        } else if (button == 1) {
+            int tab = tabAt(mouseX, mouseY);
+            if (tab >= 0) {
+                removeChannel(tab);
+                return true;
+            }
         }
         return super.mouseClicked(mouseX, mouseY, button);
+    }
+
+    /** Unlinks the right-clicked channel locally and on the server; closes when none remain. */
+    private void removeChannel(int index) {
+        if (index < 0 || index >= sources.size()) {
+            return;
+        }
+        boolean wasActive = index == activeIndex;
+        PacketDistributor.sendToServer(new RemovePortableSourcePayload(index));
+        sources.remove(index);
+        if (sources.isEmpty()) {
+            onClose();
+            return;
+        }
+        if (index < activeIndex) {
+            activeIndex--;
+        }
+        if (wasActive) {
+            activeIndex = clampActive(sources, activeIndex);
+            computerPos = sources.get(activeIndex);
+            computerName = "";
+            drawList = WidgetDrawList.EMPTY;
+            lastSentHash = 0;
+            lastPullTick = Long.MIN_VALUE;
+        }
+        int totalTabsW = sources.size() * TAB_W + Math.max(0, sources.size() - 1) * TAB_GAP;
+        tabsX = (width - totalTabsW) / 2;
     }
 
     /**

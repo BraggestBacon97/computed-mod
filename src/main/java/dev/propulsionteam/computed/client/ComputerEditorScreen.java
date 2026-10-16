@@ -620,6 +620,7 @@ public class ComputerEditorScreen extends WNodeScreen {
 
     private void renderControls(GuiGraphics graphics, int mouseX, int mouseY) {
         drawButton(graphics, 6, 6, 22, 18, explorerOpen ? "«" : "»", mouseX, mouseY);
+        drawButton(graphics, width - 212, 6, 48, 18, "Docs", mouseX, mouseY);
         drawButton(graphics, width - 158, 6, 98, 18, "Import / Export", mouseX, mouseY);
         drawButton(graphics, width - 54, 6, 22, 18, "−", mouseX, mouseY);
         drawButton(graphics, width - 28, 6, 22, 18, "+", mouseX, mouseY);
@@ -785,6 +786,13 @@ public class ComputerEditorScreen extends WNodeScreen {
         if (contains(mouseX, mouseY, width - 28, 6, 22, 18)) {
             transferMenuOpen = false;
             adjustEditorZoom(0.1, width / 2.0, height / 2.0);
+            return true;
+        }
+        if (contains(mouseX, mouseY, width - 212, 6, 48, 18)) {
+            transferMenuOpen = false;
+            contextOpen = false;
+            contextExplorerNode = null;
+            minecraft.setScreen(new dev.propulsionteam.computed.client.docs.NodeDocsScreen(this));
             return true;
         }
         if (contains(mouseX, mouseY, width - 158, 6, 98, 18)) {
@@ -963,6 +971,32 @@ public class ComputerEditorScreen extends WNodeScreen {
             notify("Computed graph imported");
         } catch (IllegalArgumentException exception) {
             notify("Graph import failed: " + exception.getMessage());
+        }
+    }
+
+    /**
+     * Replaces the current graph with a docs example program (used by the Node Docs screen's
+     * Import button). Returns {@code true} when the import was applied.
+     */
+    public boolean importDocsExample(ComputedProgramV3 program) {
+        try {
+            String typeError = ComputerEditPolicy.computerType(program, isCreativeComputer());
+            if (typeError != null) {
+                notify("Docs import rejected: " + typeError);
+                return false;
+            }
+            baseProgram = program.withRevision(serverRevision);
+            editorGraph = LuaEditorGraphAdapter.toEditorGraph(baseProgram);
+            replaceCanvasGraph(editorGraph);
+            explorer = new NodeExplorerModel(explorerNodes(baseProgram));
+            selectedExplorerNode = null;
+            explorerScroll = 0;
+            acknowledgedEditorRevision = -1;
+            notify("Example graph imported — open the docs screen again anytime");
+            return true;
+        } catch (RuntimeException exception) {
+            notify("Docs import failed: " + exception.getMessage());
+            return false;
         }
     }
 
@@ -1340,7 +1374,7 @@ public class ComputerEditorScreen extends WNodeScreen {
                         font,
                         importFolder.isEmpty()
                                 ? (modal == Modal.IMPORT_GRAPH
-                                        ? "No .computed files found"
+                                        ? "No saved graphs — try a Docs example"
                                         : "No .lua files found")
                                 : "Empty folder",
                         x + 11,

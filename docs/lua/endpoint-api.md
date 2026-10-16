@@ -87,6 +87,10 @@ Signature: `(string) -> ()`. Available only on a Creative Computer. Runs on the 
 
 Signature: `(string) -> table`. Runs on the computer thread, does not yield, has no world side effect, and uses the same deterministic fixture in preview. Returns `{ type = "text", text = value }`. Example: `ctx:output("widget", ctx:endpoint("computed:widget"):call("text", "Ready"))`.
 
+## computed:widget/number
+
+Signature: `(value: number, text: string, color: number) -> table`. Runs on the computer thread, has no side effects, and has a deterministic preview fixture. Renders the preformatted text right-aligned; `value` is carried for semantics. Format the text node-side with `string.format`. Example: `ctx:output("widget", ctx:endpoint("computed:widget"):call("number", 3.14159, "3.1416", 0xffffffff))`.
+
 ## computed:widget/clock
 
 Signature: `(color: number, showSeconds: boolean) -> table`. Runs on the computer thread, has no side effects, and has a deterministic preview fixture. Errors on invalid argument types. Example: `ctx:endpoint("computed:widget"):call("clock", 0xffffffff, true)`.
@@ -94,6 +98,14 @@ Signature: `(color: number, showSeconds: boolean) -> table`. Runs on the compute
 ## computed:widget/button
 
 Signature: `(label: string, color: number) -> table`. Runs on the computer thread, has no side effects, and has a deterministic preview fixture. The returned table carries the node instance ID for targeted input events. Example: `ctx:endpoint("computed:widget"):call("button", "Run", 0xffffffff)`.
+
+## computed:widget/checkbox
+
+Signature: `(label: string, color: number, checked: boolean) -> table`. Runs on the computer thread, has no side effects, and has a deterministic preview fixture. Clicks on the rendered widget deliver a toggle `input` event to the originating node; the node owns the checked state. Example: `ctx:endpoint("computed:widget"):call("checkbox", "Enabled", 0xffffffff, false)`.
+
+## computed:widget/text_input
+
+Signature: `(placeholder: string, color: number, value: string) -> table`. Runs on the computer thread, has no side effects, and has a deterministic preview fixture. Clicking the widget opens a client-side text dialog; the submitted string is routed to the node's `input` event. Example: `ctx:endpoint("computed:widget"):call("text_input", "Name…", 0xffffffff, "")`.
 
 ## computed:widget/slider
 
