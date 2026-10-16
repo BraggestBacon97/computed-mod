@@ -1,23 +1,25 @@
-# Bacon-approved splash texts — brought to you by Computed UwU
-Bacon is a Femboy :3
-Bacon is a certified femboy
-100% Femboy certified
-Femboys > Flywheel
-Aeronautics, but make it cute
-Propulsion, powered by cute
-Pwörk!
-MMMM Bacon
-Powered by Brat-Tears
-Bacon keeps the engines warm UwU
-Kinetic energy goes hard when you're pretty
-Computed says nya~
-Certified by BraggestBacon97
-Drone go brrr, skirt go swish
-Dual-purpose femboy, single-purpose drone
-Pose3d.transformPosition(body: cute)
-subVelocity = (uwu, uwu, uwu)
-§4§lPwörk!
-§5Sable 2.0 > Armed & Cute
-I only save femboys
-Check me in the wavelet, handsome
-vroom vroom, cutie
+Computed!
+It's just Lua, bro
+Sandboxed and proud!
+One VM per computer!
+Connect the nodes!
+Graph valid, conscience unclear
+Wires not included!
+Monochrome monitor enjoyers
+Tick, tick, tick…
+Widgets all the way down!
+Bad argument: number expected, got string!
+Text input works now, we promise
+Docs examples: now importable!
+Also try ComputerCraft!
+Don't feed the peripherals
+1 MiB of pure freedom
+Speaker go brrr
+Redstone is just digital
+Program disk or it didn't happen
+IDs shared, folders shared
+Endpoint whitelist approved
+Portable monitor, portable graphs
+0x00 is a colour too
+Nodes, nodes, nodes!
+Now with 100% more widgets
