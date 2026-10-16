@@ -37,5 +37,32 @@
   "gui.computed.peripheral_not_available": "Not available",
   "computed.configuration.title": "Computed Configs",
   "computed.configuration.section.computed.common.toml": "Computed Configs",
-  "computed.configuration.section.computed.common.toml.title": "Computed Configs"
+  "computed.configuration.section.computed.common.toml.title": "Computed Configs",
+  "title.splashes": [
+    "Computed!",
+    "It's just Lua, bro",
+    "Sandboxed and proud!",
+    "One VM per computer!",
+    "Connect the nodes!",
+    "Graph valid, conscience unclear",
+    "Wires not included!",
+    "Monochrome monitor enjoyers",
+    "Tick, tick, tick…",
+    "Widgets all the way down!",
+    "Bad argument: number expected, got string!",
+    "Text input works now, we promise",
+    "Docs examples: now importable!",
+    "Also try ComputerCraft!",
+    "Don't feed the peripherals",
+    "1 MiB of pure freedom",
+    "Speaker go brrr",
+    "Redstone is just digital",
+    "Program disk or it didn't happen",
+    "IDs shared, folders shared",
+    "Endpoint whitelist approved",
+    "Portable monitor, portable graphs",
+    "0x00 is a colour too",
+    "Nodes, nodes, nodes!",
+    "Now with 100% more widgets"
+  ]
 }
