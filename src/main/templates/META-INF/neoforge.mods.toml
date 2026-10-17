@@ -39,14 +39,15 @@ displayName="${mod_name}" #mandatory
 logoFile="computed.png"
 
 # A text field displayed in the mod UI
-#credits="" #optional
+credits="Fork of Computed by The Propulsion Team"
 
 # The authors of the mod, displayed in the mod UI (optional)
 authors="Winnie:3"
 
 # The description text for the mod (multi line!) (#mandatory)
 description='''
-Computed is a node-graph visual programming mod for NeoForge 1.21.1, built on its own embedded Lua sandbox.
+Winnie's Computed — a themed fork of The Propulsion Team's Computed.
+A node-graph visual programming mod for NeoForge 1.21.1, built on its own embedded Lua sandbox.
 
 Turn a computer block into custom sensors and controllers:
 - Node editor with live graph preview

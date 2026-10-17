@@ -82,7 +82,7 @@ public class WNodeScreen extends Screen {
     private final List<ItemStack> itemPickerItems = new ArrayList<>();
 
     public WNodeScreen(WGraph graph) {
-        super(Component.literal("Computed Node Editor"));
+        super(Component.literal("Winnie's Computed Node Editor"));
         this.graph = graph;
     }
 

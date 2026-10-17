@@ -1,5 +1,5 @@
-Computed — License Overview
-===========================
+Winnie's Computed — License Overview
+=====================================
 
 Code License: GNU General Public License v3.0 (GPL-3.0)
 ------------------------------------------------------

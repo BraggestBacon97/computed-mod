@@ -1,5 +1,5 @@
 {
-  "itemGroup.computed": "Computed",
+  "itemGroup.computed": "Winnie's Computed",
   "block.computed.computer": "Computer",
   "block.computed.monitor": "Monitor",
   "block.computed.speaker": "Speaker",
@@ -34,7 +34,7 @@
   "computed.tooltip.computer_id": "Computer ID: %s",
   "config.jade.plugin_computed.computer_id": "Show computer ID",
   "gui.computed.peripheral_not_available": "Not available",
-  "computed.configuration.title": "Computed Configs",
-  "computed.configuration.section.computed.common.toml": "Computed Configs",
-  "computed.configuration.section.computed.common.toml.title": "Computed Configs"
+  "computed.configuration.title": "Winnie's Computed Configs",
+  "computed.configuration.section.computed.common.toml": "Winnie's Computed Configs",
+  "computed.configuration.section.computed.common.toml.title": "Winnie's Computed Configs"
 }

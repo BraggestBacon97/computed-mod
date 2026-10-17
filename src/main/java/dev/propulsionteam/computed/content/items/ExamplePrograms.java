@@ -68,7 +68,7 @@ public final class ExamplePrograms {
                 -80,
                 -80,
                 List.of(out("text", ConnectionType.STRING)),
-                Map.of("text", CODEC.encode(LuaValue.valueOf("Computed widget demo"))));
+                Map.of("text", CODEC.encode(LuaValue.valueOf("Winnie's widget demo"))));
         GraphNode panelNode = new GraphNode(
                 panelId,
                 panel.id(),

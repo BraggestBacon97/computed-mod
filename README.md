@@ -1,11 +1,11 @@
-# Computed
+# Winnie's Computed
 
-NOT MY MOD, FORKED FROM [The Propulsion Team](https://github.com/Propulsion-Team/computed-mod).
-IM JUST MESSING AROUND WITH THIS MOD AND ADDING MY OWN SPIN TO IT. 
+Fork of [The Propulsion Team](https://github.com/Propulsion-Team/computed-mod)'s **Computed**,
+re-themed and reworked with original CC0 assets and my own spin on it.
 
-Computed is a NeoForge 1.21.1 programmable Lua node-graph mod. LuaJ powers one sandboxed VM per
-computer while Computed owns graph scheduling, safe Minecraft endpoints, persistence, networking,
-the editor, monitor rendering, and integrations.
+Winnie's Computed is a NeoForge 1.21.1 programmable Lua node-graph mod. LuaJ powers one sandboxed
+VM per computer while the Computed engine owns graph scheduling, safe Minecraft endpoints,
+persistence, networking, the editor, monitor rendering, and integrations.
 
 Program format 3 stores one root graph and an embedded Lua definition library. Legacy graphs,
 Functions, Sections, JSON custom nodes, CMP1, and CMP2 are intentionally discarded or rejected

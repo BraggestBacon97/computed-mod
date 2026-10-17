@@ -1,4 +1,4 @@
-Computed!
+Winnie's Computed!
 It's just Lua, bro
 Sandboxed and proud!
 One VM per computer!

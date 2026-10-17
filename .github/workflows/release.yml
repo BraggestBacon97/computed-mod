@@ -2,11 +2,16 @@ name: Release
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
 
 permissions:
   contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 jobs:
   release:
@@ -18,33 +23,56 @@ jobs:
           fetch-depth: 0
           fetch-tags: true
 
+      - name: Determine release target
+        id: target
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mod_version=$(grep 'mod_version' gradle.properties | cut -d'=' -f2 | xargs)
+          default_tag="v${mod_version}"
+
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            tag="${GITHUB_REF_NAME}"
+            if [[ "${tag}" != "${default_tag}" ]]; then
+              echo "::error::Tag ${tag} does not match gradle.properties mod_version=${mod_version} (expected ${default_tag})"
+              exit 1
+            fi
+          else
+            tag="${default_tag}"
+          fi
+
+          if gh release view "${tag}" --repo "${GITHUB_REPOSITORY}" > /dev/null 2>&1; then
+            echo "Release ${tag} already exists — skipping."
+            echo "needed=false" >> "${GITHUB_OUTPUT}"
+          else
+            echo "needed=true" >> "${GITHUB_OUTPUT}"
+          fi
+          echo "tag=${tag}" >> "${GITHUB_OUTPUT}"
+          echo "mod_version=${mod_version}" >> "${GITHUB_OUTPUT}"
+
       - name: Setup JDK 21
+        if: steps.target.outputs.needed == 'true'
         uses: actions/setup-java@v4
         with:
           java-version: '21'
           distribution: 'temurin'
 
       - name: Setup Gradle
+        if: steps.target.outputs.needed == 'true'
         uses: gradle/actions/setup-gradle@v4
 
       - name: Make Gradle wrapper executable
+        if: steps.target.outputs.needed == 'true'
         run: chmod +x ./gradlew
 
-      - name: Verify tag matches mod_version
-        shell: bash
-        run: |
-          set -euo pipefail
-          tag_version="${GITHUB_REF_NAME#v}"
-          mod_version=$(grep 'mod_version' gradle.properties | cut -d'=' -f2 | xargs)
-          if [[ "${tag_version}" != "${mod_version}" ]]; then
-            echo "Tag v${tag_version} does not match gradle.properties mod_version=${mod_version}"
-            exit 1
-          fi
-
       - name: Build with Gradle
+        if: steps.target.outputs.needed == 'true'
         run: ./gradlew build
 
       - name: Prepare release jar
+        if: steps.target.outputs.needed == 'true'
         id: artifact
         shell: bash
         run: |
@@ -54,17 +82,28 @@ jobs:
             echo "No jar artifact found in build/libs"
             exit 1
           fi
-          release_name="computed-${GITHUB_REF_NAME}.jar"
+          release_name="computed-${{ steps.target.outputs.tag }}.jar"
           release_path="build/libs/${release_name}"
           cp "${artifact}" "${release_path}"
           echo "path=${release_path}" >> "${GITHUB_OUTPUT}"
-          echo "name=${release_name}" >> "${GITHUB_OUTPUT}"
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          name: Computed ${{ github.ref_name }}
-          files: ${{ steps.artifact.outputs.path }}
-          generate_release_notes: true
-          draft: false
-          prerelease: ${{ contains(github.ref_name, '-alpha') || contains(github.ref_name, '-beta') || contains(github.ref_name, '-rc') }}
+        if: steps.target.outputs.needed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.target.outputs.tag }}
+          MOD_VERSION: ${{ steps.target.outputs.mod_version }}
+          JAR_PATH: ${{ steps.artifact.outputs.path }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          prerelease_args=()
+          if [[ "${MOD_VERSION}" == *-alpha* || "${MOD_VERSION}" == *-beta* || "${MOD_VERSION}" == *-rc* ]]; then
+            prerelease_args+=(--prerelease)
+          fi
+          gh release create "${TAG}" "${JAR_PATH}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --target "${GITHUB_SHA}" \
+            --title "Winnie's Computed ${TAG}" \
+            --generate-notes \
+            "${prerelease_args[@]}"
