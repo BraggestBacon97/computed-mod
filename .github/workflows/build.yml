@@ -53,82 +53,12 @@ jobs:
           cp "${artifact}" "${nightly_path}"
           echo "path=${nightly_path}" >> "${GITHUB_OUTPUT}"
           echo "name=${nightly_name}" >> "${GITHUB_OUTPUT}"
-          echo "short_sha=${short_sha}" >> "${GITHUB_OUTPUT}"
 
-      - name: Send jar to Discord webhook
+      - name: Upload nightly jar
         if: github.event_name == 'push'
-        env:
-          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
-          ARTIFACT_PATH: ${{ steps.artifact.outputs.path }}
-          ARTIFACT_NAME: ${{ steps.artifact.outputs.name }}
-          SHORT_SHA: ${{ steps.artifact.outputs.short_sha }}
-          BEFORE_SHA: ${{ github.event.before || '' }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [[ -z "${DISCORD_WEBHOOK_URL:-}" ]]; then
-            echo "Missing required secret: DISCORD_WEBHOOK_URL"
-            exit 1
-          fi
-
-          payload=$(python3 -c "
-          import json, os, subprocess
-
-          repo        = os.environ['GITHUB_REPOSITORY']
-          repo_url    = f'https://github.com/{repo}'
-          branch      = os.environ['GITHUB_REF_NAME']
-          artifact    = os.environ['ARTIFACT_NAME']
-          current_sha = os.environ['GITHUB_SHA']
-          short_sha   = os.environ['SHORT_SHA']
-          before_sha  = os.environ.get('BEFORE_SHA', '').strip()
-          timestamp   = subprocess.check_output(['date', '-u', '+%Y-%m-%dT%H:%M:%SZ']).decode().strip()
-
-          null_sha = '0000000000000000000000000000000000000000'
-          if before_sha and before_sha != null_sha:
-            before_short  = before_sha[:8]
-            hash_range    = f'{before_short}...{short_sha}'
-            compare_url   = f'https://github.com/{repo}/compare/{before_sha}...{current_sha}'
-            git_range     = f'{before_sha}..HEAD'
-            extra_args    = [git_range]
-          else:
-            hash_range    = short_sha
-            compare_url   = f'https://github.com/{repo}/commit/{current_sha}'
-            extra_args    = ['-5']
-
-          log = subprocess.check_output(
-            ['git', 'log', '--pretty=format:%h|%H|%s|%an'] + extra_args
-          ).decode().strip()
-
-          commit_lines = ''
-          for line in log.splitlines():
-            if not line:
-              continue
-            parts = line.split('|', 3)
-            if len(parts) < 4:
-              continue
-            h, full_h, msg, author = parts
-            url = f'https://github.com/{repo}/commit/{full_h}'
-            commit_lines += f'\n- [\`{h}\`]({url}) {msg} - by {author}'
-
-          description = (
-            f'🔗 **GitHub Repository:** {repo_url}\n\n'
-            f'[{hash_range}]({compare_url})'
-            f'{commit_lines}\n\n'
-            f'**Build attached below**'
-          )
-
-          payload = {
-            'embeds': [{
-              'title':       f'Building mod from branch {branch}',
-              'color':       2303786,
-              'description': description,
-              'footer':      {'text': 'Winnie\'s Computed - Nightly Build'},
-              'timestamp':   timestamp
-            }]
-          }
-          print(json.dumps(payload))
-          ")
-
-          curl -sS -X POST "${DISCORD_WEBHOOK_URL}" \
-            -F "payload_json=${payload}" \
-            -F "file1=@${ARTIFACT_PATH};filename=${ARTIFACT_NAME}"
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.artifact.outputs.name }}
+          path: ${{ steps.artifact.outputs.path }}
+          if-no-files-found: error
+          retention-days: 30
