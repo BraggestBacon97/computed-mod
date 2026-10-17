@@ -1,9 +1,3 @@
 {
-  "parent": "computed:block/monitor/monitor_base",
-  "textures": {
-    "front": "computed:block/monitor/monitor_normal_22",
-    "back":  "computed:block/monitor/monitor_normal_38",
-    "side":  "computed:block/monitor/monitor_normal_5",
-    "top":   "computed:block/monitor/monitor_normal_0"
-  }
+  "parent": "computed:block/monitor/monitor_base"
 }

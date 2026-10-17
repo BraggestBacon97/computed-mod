@@ -1,10 +1,36 @@
-Asset License: All Rights Reserved (ARR)
-
-"Assets" refers to any visual material included in this package, such as textures, models, and other artwork.
-
-All rights reserved. Use, copying, modification, merging, publishing, distribution, sublicensing, and/or selling of assets in this package is not permitted without explicit prior written permission from the copyright holder.
+Computed — License Overview
+===========================
 
 Code License: GNU General Public License v3.0 (GPL-3.0)
+------------------------------------------------------
+All source code in this repository — Java, Lua, build scripts, tests, and the
+generated example graphs — is licensed under the GNU GPL v3.0.
+See https://www.gnu.org/licenses/gpl-3.0.en.html for the full terms.
 
-This code is licensed under the GNU GPL v3.0.
-See https://www.gnu.org/licenses/gpl-3.0.en.html for details.
+Asset License: CC0 1.0 Universal (Public Domain Dedication)
+-----------------------------------------------------------
+All visual assets in this repository — textures, models, geometry, animations,
+and other artwork — are dedicated to the public domain under CC0 1.0.
+See https://creativecommons.org/publicdomain/zero/1.0/ for the full terms.
+You may copy, modify, distribute and use them, even for commercial purposes,
+without asking permission or giving credit.
+
+Provenance
+----------
+This repository is a fork of The Propulsion Team's "Computed"
+(https://github.com/Propulsion-Team/computed-mod). The upstream release shipped
+its assets under "All Rights Reserved". No upstream assets are distributed in
+this fork: every texture, model, and geometry file of upstream origin has been
+replaced with original work of this fork — hand-made block models and textures
+for the computer, monitor, and speaker, the portable monitor item (textures,
+geometry, animation, and model), or CC0 placeholder assets regenerable via
+tools/generate_placeholder_assets.py. All of it is released under CC0 1.0.
+Upstream code remains in use under the terms of the GPL-3.0 with attribution
+preserved in the README.
+
+Third-party notices
+-------------------
+* Web's Node Lib is vendored under the MIT License
+  (see LICENSE-webs_node_lib.txt).
+* LuaJ, GeckoLib, and NeoForge are used under their respective licenses; see
+  the upstream projects for details.

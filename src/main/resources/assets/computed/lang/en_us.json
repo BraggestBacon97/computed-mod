@@ -1,7 +1,6 @@
 {
   "itemGroup.computed": "Computed",
   "block.computed.computer": "Computer",
-  "block.computed.creative_computer": "Creative Computer",
   "block.computed.monitor": "Monitor",
   "block.computed.speaker": "Speaker",
   "item.computed.computer.stored": "Stored Program - %s nodes, %s Lua definitions",

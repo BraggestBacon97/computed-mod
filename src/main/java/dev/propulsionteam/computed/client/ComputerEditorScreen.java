@@ -1792,10 +1792,7 @@ public class ComputerEditorScreen extends WNodeScreen {
     }
 
     private boolean isCreativeComputer() {
-        Minecraft client = Minecraft.getInstance();
-        return client.level != null
-                && client.level.getBlockState(computerPos)
-                        .is(ComputedRegistries.CREATIVE_COMPUTER_BLOCK.get());
+        return false;
     }
 
     private List<ExplorerNode> explorerNodes(ComputedProgramV3 program) {

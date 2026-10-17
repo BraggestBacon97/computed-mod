@@ -2,7 +2,6 @@
   "replace": false,
   "values": [
     "computed:computer",
-    "computed:creative_computer",
     "computed:monitor"
   ]
 }

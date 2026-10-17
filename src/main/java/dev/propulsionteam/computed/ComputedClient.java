@@ -2,12 +2,10 @@ package dev.propulsionteam.computed;
 
 import dev.propulsionteam.computed.client.ComputerEditorScreen;
 import dev.propulsionteam.computed.client.ComputerPeripheralScreen;
-import dev.propulsionteam.computed.client.PortableMonitorRaise;
 import dev.propulsionteam.computed.client.PortableMonitorScreen;
 import dev.propulsionteam.computed.content.ComputedRegistries;
 import dev.propulsionteam.computed.content.Peripherals;
 import dev.propulsionteam.computed.content.blocks.ComputerBlockEntity;
-import dev.propulsionteam.computed.content.items.PortableMonitorRaiseBridge;
 import dev.propulsionteam.computed.integration.geckolib.GeckoLibSupport;
 import dev.propulsionteam.computed.menu.ComputerPeripheralMenu;
 import java.util.List;
@@ -89,7 +87,6 @@ public class ComputedClient {
                     }
                 },
                 (sources, active) -> Minecraft.getInstance().setScreen(new PortableMonitorScreen(sources, active)));
-        PortableMonitorRaiseBridge.install(PortableMonitorRaise::isActive, PortableMonitorRaise::start);
     }
 
     public ComputedClient(ModContainer container) {

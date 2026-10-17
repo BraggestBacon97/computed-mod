@@ -95,23 +95,13 @@ public final class ComputedRegistries {
             ITEMS.register(
                     "computer",
                     () -> new ComputerBlockItem(COMPUTER_BLOCK.get(), new Item.Properties()));
-    public static final DeferredBlock<ComputerBlock> CREATIVE_COMPUTER_BLOCK =
-            BLOCKS.register(
-                    "creative_computer",
-                    props -> new ComputerBlock(
-                            BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BLOCK).noOcclusion()));
-    public static final DeferredItem<BlockItem> CREATIVE_COMPUTER_BLOCK_ITEM =
-            ITEMS.register(
-                    "creative_computer",
-                    () -> new ComputerBlockItem(CREATIVE_COMPUTER_BLOCK.get(), new Item.Properties()));
 
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<ComputerBlockEntity>> COMPUTER_BLOCK_ENTITY =
             BLOCK_ENTITY_TYPES.register(
                     "computer",
                     () -> BlockEntityType.Builder.of(
                             ComputerBlockEntity::new,
-                            COMPUTER_BLOCK.get(),
-                            CREATIVE_COMPUTER_BLOCK.get()).build(null));
+                            COMPUTER_BLOCK.get()).build(null));
 
     public static final DeferredBlock<MonitorBlock> MONITOR_BLOCK =
             BLOCKS.register(
@@ -161,7 +151,6 @@ public final class ComputedRegistries {
                             .icon(() -> COMPUTER_BLOCK_ITEM.get().getDefaultInstance())
                             .displayItems((parameters, output) -> {
                                 output.accept(COMPUTER_BLOCK_ITEM.get());
-                                output.accept(CREATIVE_COMPUTER_BLOCK_ITEM.get());
                                 output.accept(MONITOR_BLOCK_ITEM.get());
                                 output.accept(SPEAKER_BLOCK_ITEM.get());
                                 output.accept(PROGRAM_DISK_ITEM.get());

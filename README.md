@@ -26,8 +26,11 @@ Build and verify with:
 Computed now ships its own node engine, persistence model, runtime, and editor under the
 `dev.propulsionteam.computed` and `assets/computed` namespaces. Portions of the editor and built-in
 node implementation were derived from **Web's Node Lib** under the MIT License; the original package
-and resource namespaces are not included in the distributable. Computed-specific changes and assets
-remain governed by the main [license](LICENSE.txt).
+and resource namespaces are not included in the distributable. Computed-specific changes remain
+governed by the main [license](LICENSE.txt): code under GPL-3.0, all visual assets (textures,
+models, artwork) under CC0 1.0. This fork ships no upstream assets — every texture and model has
+been replaced with original CC0 placeholders
+(`tools/generate_placeholder_assets.py`).
 
 **Web's Node Lib**  
 • **Repository:** [webyep-art/webs_node_lib](https://github.com/webyep-art/webs_node_lib)  

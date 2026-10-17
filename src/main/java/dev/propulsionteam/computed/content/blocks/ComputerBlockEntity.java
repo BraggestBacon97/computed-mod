@@ -756,7 +756,7 @@ public class ComputerBlockEntity extends BaseContainerBlockEntity
     }
 
     public boolean isCreativeComputer() {
-        return getBlockState().is(ComputedRegistries.CREATIVE_COMPUTER_BLOCK.get());
+        return false;
     }
 
     @Override
