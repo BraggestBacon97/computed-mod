@@ -1,0 +1,70 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Setup JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Make Gradle wrapper executable
+        run: chmod +x ./gradlew
+
+      - name: Verify tag matches mod_version
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag_version="${GITHUB_REF_NAME#v}"
+          mod_version=$(grep 'mod_version' gradle.properties | cut -d'=' -f2 | xargs)
+          if [[ "${tag_version}" != "${mod_version}" ]]; then
+            echo "Tag v${tag_version} does not match gradle.properties mod_version=${mod_version}"
+            exit 1
+          fi
+
+      - name: Build with Gradle
+        run: ./gradlew build
+
+      - name: Prepare release jar
+        id: artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          artifact="$(ls build/libs/*.jar | grep -Ev '(-sources|-javadoc)' | head -n 1 || true)"
+          if [[ -z "${artifact}" ]]; then
+            echo "No jar artifact found in build/libs"
+            exit 1
+          fi
+          release_name="computed-${GITHUB_REF_NAME}.jar"
+          release_path="build/libs/${release_name}"
+          cp "${artifact}" "${release_path}"
+          echo "path=${release_path}" >> "${GITHUB_OUTPUT}"
+          echo "name=${release_name}" >> "${GITHUB_OUTPUT}"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Computed ${{ github.ref_name }}
+          files: ${{ steps.artifact.outputs.path }}
+          generate_release_notes: true
+          draft: false
+          prerelease: ${{ contains(github.ref_name, '-alpha') || contains(github.ref_name, '-beta') || contains(github.ref_name, '-rc') }}
